@@ -11,15 +11,14 @@ import {
   ArrowRight,
   TrendingDown,
   DollarSign,
-  AlertCircle,
-  LogOut
+  AlertCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function Dashboard() {
-  const { data, loading, error, needsAuth, handleLogin, handleLogout, user } = useDashboardData();
+  const { data, loading, error } = useDashboardData();
 
-  if (loading && !needsAuth && !data.inscritos) {
+  if (loading && !data.inscritos) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-bg-base">
         <div className="flex flex-col items-center gap-4">
@@ -66,30 +65,11 @@ export function Dashboard() {
                 <span className="xl:hidden">Modo Demo</span>
               </div>
             )}
-            
-            {needsAuth ? (
-              <button onClick={handleLogin} className="flex items-center justify-center bg-white hover:bg-gray-100 text-gray-900 font-medium text-sm py-2 px-4 rounded-xl transition shadow-sm border border-gray-200">
-                <svg className="w-4 h-4 mr-2" viewBox="0 0 48 48">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                  <path fill="none" d="M0 0h48v48H0z"></path>
-                </svg>
-                Conectar Planilha
-              </button>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  {user?.photoURL && (
-                    <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full border border-bg-card-border" />
-                  )}
-                  <span className="text-sm font-medium text-gray-300 hidden sm:inline-block">{user?.displayName?.split(' ')[0] || 'Logado'}</span>
-                </div>
-                <button onClick={handleLogout} className="text-gray-500 hover:text-white p-2 rounded-lg hover:bg-bg-card transition" title="Sair">
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
+            {!error && !loading && (
+               <div className="flex items-center gap-2 bg-in-green/10 text-in-green px-4 py-2 rounded-full text-sm font-medium border border-in-green/20">
+                  <div className="w-2 h-2 rounded-full bg-in-green animate-pulse"></div>
+                  <span>Sincronizado</span>
+               </div>
             )}
           </div>
         </div>

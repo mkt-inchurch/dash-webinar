@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardData } from '../types';
-import { initAuth, getAccessToken, googleSignIn, logout } from '../lib/auth';
-import { User } from 'firebase/auth';
+import Papa from 'papaparse';
 
 // Realistic mock data
 const MOCK_DATA: DashboardData = {
@@ -93,78 +92,38 @@ function extractDashboardValues(grid: any[][]): DashboardData {
   };
 }
 
+const PUBLIC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ79hHc73Ww0MB6Nb7-OAxCfuqH4I_KS3oAtHsNR-bhDhNRLGAcI5wyYalG7m_1TWeW44hMb6hTUC1o/pub?gid=1000295038&single=true&output=csv";
+
 export function useDashboardData() {
   const [data, setData] = useState<DashboardData>(MOCK_DATA);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const [needsAuth, setNeedsAuth] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       
-      // 1. Try public proxy first (works if spreadsheet is 'Anyone with link')
-      try {
-        const publicRes = await fetch('/api/data');
-        if (publicRes.ok) {
-          const rawResponse = await publicRes.json();
-          if (rawResponse.success && rawResponse.data && Array.isArray(rawResponse.data)) {
-            const grid = rawResponse.data;
-            const values = extractDashboardValues(grid);
-            setData(values);
-            setError(null);
-            setNeedsAuth(false);
-            setLoading(false);
-            return;
+      const res = await fetch(PUBLIC_CSV_URL);
+      if (!res.ok) {
+        throw new Error("Erro ao buscar a planilha pública.");
+      }
+
+      const csvText = await res.text();
+      
+      Papa.parse(csvText, {
+        complete: (results) => {
+          if (results.data && Array.isArray(results.data)) {
+             const values = extractDashboardValues(results.data as any[][]);
+             setData(values);
+             setError(null);
           }
-        }
-      } catch(e) {
-        // Ignore and fallback to auth
-      }
-
-      // 2. Fallback to authenticated fetch if public proxy failed
-      const token = await getAccessToken();
-      
-      if (!token) {
-        setNeedsAuth(true);
-        setData(MOCK_DATA);
-        setError("A planilha do Google é privada. Conecte sua conta do Google para visualizar os dados de forma segura, ou torne a planilha pública.");
-        setLoading(false);
-        return;
-      }
-
-      setNeedsAuth(false);
-      
-      const SPREADSHEET_ID = "1QkFMFOCMMAzj3BgEoiCtTD_YHSu48p51xmu9Y3TaulM";
-      const RANGE = "DADOS";
-      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
+        },
+        error: (error: any) => {
+           console.error("CSV Parse error:", error);
+           setError("Erro ao interpretar os dados da planilha");
         }
       });
-      
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-           setError("Acesso negado. Certifique-se de que sua conta do Google tem acesso à planilha.");
-           setNeedsAuth(true); 
-        } else {
-           setError(`Erro ao conectar na API do Google Sheets: ${response.statusText}`);
-        }
-        setData(MOCK_DATA);
-        return;
-      }
 
-      const rawResponse = await response.json();
-
-      if (rawResponse.values && Array.isArray(rawResponse.values)) {
-        const values = extractDashboardValues(rawResponse.values);
-        setData(values);
-        setError(null);
-      } else {
-        setData(MOCK_DATA);
-      }
     } catch (err: any) {
       console.error("Failed to fetch sheet data", err);
       setError("Erro ao processar dados da planilha. Exibindo dados simulados.");
@@ -175,51 +134,11 @@ export function useDashboardData() {
   }, []);
 
   useEffect(() => {
-    // Initialize Auth listener from Firebase
-    const unsubscribe = initAuth(
-      (currentUser, token) => {
-        setUser(currentUser);
-        setNeedsAuth(false);
-        fetchData();
-      },
-      () => {
-        setUser(null);
-        setNeedsAuth(true);
-        setData(MOCK_DATA);
-        setLoading(false);
-      }
-    );
-
-    // Initial manual fetch check
     fetchData();
-    
     const interval = setInterval(fetchData, 5 * 60 * 1000);
-    return () => {
-      clearInterval(interval);
-      unsubscribe();
-    };
+    return () => clearInterval(interval);
   }, [fetchData]);
 
-  const handleLogin = async () => {
-    try {
-      const result = await googleSignIn();
-      if (result) {
-        setUser(result.user);
-        setNeedsAuth(false);
-        fetchData();
-      }
-    } catch (err: any) {
-      console.error('Login failed:', err);
-      setError(err.message || 'Erro ao conectar. Por favor, torne a planilha pública.');
-    }
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    setUser(null);
-    setNeedsAuth(true);
-    setData(MOCK_DATA);
-  };
-
-  return { data, loading, error, needsAuth, handleLogin, handleLogout, user };
+  return { data, loading, error, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
 }
+
