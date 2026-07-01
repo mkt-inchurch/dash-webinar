@@ -6,25 +6,33 @@ interface KPICardProps {
   title: string;
   value: string | number;
   subtitle?: string;
+  footer?: ReactNode;
   icon?: ReactNode;
   highlight?: boolean;
+  active?: boolean;
+  onClick?: () => void;
   delay?: number;
 }
 
-export const KPICard: FC<KPICardProps> = ({ title, value, subtitle, icon, highlight, delay = 0 }) => {
+export const KPICard: FC<KPICardProps> = ({ title, value, subtitle, footer, icon, highlight, active, onClick, delay = 0 }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay, ease: [0.25, 0.1, 0.25, 1] }}
+      whileTap={onClick ? { scale: 0.98 } : undefined}
+      onClick={onClick}
       className={cn(
-        "relative overflow-hidden rounded-2xl border p-6 flex flex-col justify-between h-full",
-        highlight 
-          ? "border-in-green bg-in-green-dim" 
-          : "border-bg-card-border bg-bg-card hover:bg-bg-card-hover transition-colors"
+        "relative overflow-hidden rounded-2xl border p-6 flex flex-col justify-between h-full transition-all",
+        onClick && "cursor-pointer",
+        active
+          ? "border-in-green ring-2 ring-in-green/50 bg-bg-card-hover"
+          : highlight
+            ? "border-in-green bg-in-green-dim"
+            : "border-bg-card-border bg-bg-card hover:bg-bg-card-hover"
       )}
     >
-      {highlight && (
+      {(highlight || active) && (
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-in-green rounded-full opacity-20 blur-3xl pointer-events-none" />
       )}
       
@@ -43,6 +51,9 @@ export const KPICard: FC<KPICardProps> = ({ title, value, subtitle, icon, highli
         </div>
         {subtitle && (
           <p className="text-xs font-mono text-gray-500 uppercase tracking-widest">{subtitle}</p>
+        )}
+        {footer && (
+          <div className="mt-2">{footer}</div>
         )}
       </div>
     </motion.div>

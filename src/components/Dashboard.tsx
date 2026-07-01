@@ -1,22 +1,23 @@
+import { useState } from 'react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { KPICard } from './KPICard';
-import { FunnelChart } from './FunnelChart';
+import { ChartPanel } from './ChartPanel';
 import { formatCurrency, formatNumber, formatPercent } from '../lib/utils';
-import { 
-  Users, 
-  UserPlus, 
-  Search, 
-  Target, 
-  Stethoscope, 
-  ArrowRight,
+import { META_INSCRITOS } from '../lib/constants';
+import {
+  Users,
+  UserPlus,
+  Search,
+  Target,
+  Stethoscope,
   TrendingDown,
   DollarSign,
   AlertCircle
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 export function Dashboard() {
   const { data, loading, error } = useDashboardData();
+  const [selected, setSelected] = useState('inscritos');
 
   if (loading && !data.inscritos) {
     return (
@@ -28,14 +29,6 @@ export function Dashboard() {
       </div>
     );
   }
-
-  const funnelData = [
-    { name: 'Inscritos', value: data.inscritos },
-    { name: 'Grupo', value: data.entradasGrupo },
-    { name: 'Pesquisas', value: data.pesquisas },
-    { name: 'ICPs', value: data.icps },
-    { name: 'Diagnósticos', value: data.diagnosticos },
-  ];
 
   return (
     <div className="min-h-screen bg-bg-base w-full pb-20">
@@ -77,93 +70,75 @@ export function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
 
-        
+
         {/* Core Metrics Grid */}
         <div>
-          <h2 className="text-sm font-mono text-gray-500 mb-4 px-2 uppercase tracking-widest">Aquisição</h2>
+          <div className="flex items-center justify-between mb-4 px-2">
+            <h2 className="text-sm font-mono text-gray-500 uppercase tracking-widest">Aquisição</h2>
+            <span className="text-xs text-gray-600 hidden sm:inline">Clique em um card para ver o gráfico</span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <KPICard 
-              title="Total de Inscritos" 
-              value={formatNumber(data.inscritos)} 
+            <KPICard
+              title="Total de Inscritos"
+              value={formatNumber(data.inscritos)}
               icon={<Users className="w-5 h-5" />}
               delay={0.1}
+              active={selected === 'inscritos'}
+              onClick={() => setSelected('inscritos')}
+              footer={
+                <span className="text-xs font-semibold text-in-green">
+                  {formatPercent(data.inscritos / META_INSCRITOS)} da meta ({formatNumber(META_INSCRITOS)})
+                </span>
+              }
             />
-            <KPICard 
-              title="Entradas no Grupo" 
-              value={formatNumber(data.entradasGrupo)} 
+            <KPICard
+              title="Entradas no Grupo"
+              value={formatNumber(data.entradasGrupo)}
               icon={<UserPlus className="w-5 h-5" />}
               delay={0.15}
+              active={selected === 'entradasGrupo'}
+              onClick={() => setSelected('entradasGrupo')}
+              footer={
+                <span className="text-xs font-semibold text-in-green">
+                  {formatPercent(data.taxaInscritosGrupo)} · Inscritos → Grupo
+                </span>
+              }
             />
-            <KPICard 
-              title="Total de Pesquisas" 
-              value={formatNumber(data.pesquisas)} 
+            <KPICard
+              title="Total de Pesquisas"
+              value={formatNumber(data.pesquisas)}
               icon={<Search className="w-5 h-5" />}
               delay={0.2}
+              active={selected === 'pesquisas'}
+              onClick={() => setSelected('pesquisas')}
+              footer={
+                <span className="text-xs font-semibold text-in-green">
+                  {formatPercent(data.taxaGrupoPesquisa)} · Grupo → Pesquisa
+                </span>
+              }
             />
-            <KPICard 
-              title="Total de ICPs" 
-              value={formatNumber(data.icps)} 
+            <KPICard
+              title="Total de ICPs"
+              value={formatNumber(data.icps)}
               icon={<Target className="w-5 h-5" />}
               delay={0.25}
+              active={selected === 'icps'}
+              onClick={() => setSelected('icps')}
+              footer={
+                <span className="text-xs font-semibold text-in-green">
+                  {formatPercent(data.taxaPesquisaIcp)} · Pesquisa → ICPs
+                </span>
+              }
             />
-            <KPICard 
-              title="Diagnósticos" 
-              value={formatNumber(data.diagnosticos)} 
+            <KPICard
+              title="Diagnósticos"
+              value={formatNumber(data.diagnosticos)}
               icon={<Stethoscope className="w-5 h-5" />}
               delay={0.3}
               highlight
+              active={selected === 'diagnosticos'}
+              onClick={() => setSelected('diagnosticos')}
             />
-          </div>
-        </div>
-
-        {/* Funnel & Growth Rates */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          <div className="lg:col-span-2">
-             <FunnelChart data={funnelData} />
-          </div>
-
-          <div className="flex flex-col space-y-4">
-            <h2 className="text-sm font-mono text-gray-500 mb-1 px-2 uppercase tracking-widest">Taxas de Conversão</h2>
-            
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="bg-bg-card border border-bg-card-border rounded-xl p-5 flex items-center justify-between"
-            >
-              <div className="flex flex-col">
-                <span className="text-sm text-gray-400">Inscritos → Grupo</span>
-                <span className="text-2xl font-bold text-white">{formatPercent(data.taxaInscritosGrupo)}</span>
-              </div>
-              <ArrowRight className="text-in-green w-5 h-5 opacity-50" />
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 }}
-              className="bg-bg-card border border-bg-card-border rounded-xl p-5 flex items-center justify-between"
-            >
-              <div className="flex flex-col">
-                <span className="text-sm text-gray-400">Grupo → Pesquisa</span>
-                <span className="text-2xl font-bold text-white">{formatPercent(data.taxaGrupoPesquisa)}</span>
-              </div>
-              <ArrowRight className="text-in-green w-5 h-5 opacity-50" />
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 }}
-              className="bg-bg-card border border-bg-card-border rounded-xl p-5 flex items-center justify-between"
-            >
-              <div className="flex flex-col">
-                <span className="text-sm text-gray-400">Pesquisa → ICPs</span>
-                <span className="text-2xl font-bold text-in-green">{formatPercent(data.taxaPesquisaIcp)}</span>
-              </div>
-              <Target className="text-in-green w-5 h-5 opacity-50" />
-            </motion.div>
           </div>
         </div>
 
@@ -171,32 +146,43 @@ export function Dashboard() {
         <div>
           <h2 className="text-sm font-mono text-gray-500 mb-4 px-2 uppercase tracking-widest">Financeiro & Tráfego</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPICard 
-              title="Investimento Total" 
-              value={formatCurrency(data.investimentoTrafego)} 
+            <KPICard
+              title="Investimento Total"
+              value={formatCurrency(data.investimentoTrafego)}
               icon={<DollarSign className="w-5 h-5" />}
               delay={0.4}
+              active={selected === 'investimentoTrafego'}
+              onClick={() => setSelected('investimentoTrafego')}
             />
-            <KPICard 
-              title="Leads (Meta)" 
-              value={formatNumber(data.leadsMeta)} 
+            <KPICard
+              title="Leads (Meta)"
+              value={formatNumber(data.leadsMeta)}
               icon={<Target className="w-5 h-5" />}
               delay={0.5}
+              active={selected === 'leadsMeta'}
+              onClick={() => setSelected('leadsMeta')}
             />
-            <KPICard 
-              title="CPA / CPL (Meta)" 
-              value={formatCurrency(data.cplMeta)} 
+            <KPICard
+              title="CPA / CPL (Meta)"
+              value={formatCurrency(data.cplMeta)}
               delay={0.6}
+              active={selected === 'cplMeta'}
+              onClick={() => setSelected('cplMeta')}
             />
-            <KPICard 
-              title="CPA / CPL (Real)" 
-              value={formatCurrency(data.cplReal)} 
+            <KPICard
+              title="CPA / CPL (Real)"
+              value={formatCurrency(data.cplReal)}
               icon={<TrendingDown className="w-5 h-5" />}
               delay={0.7}
               highlight={data.cplReal <= data.cplMeta}
+              active={selected === 'cplReal'}
+              onClick={() => setSelected('cplReal')}
             />
           </div>
         </div>
+
+        {/* Dynamic Chart */}
+        <ChartPanel selected={selected} data={data} />
 
       </main>
     </div>
