@@ -16,10 +16,10 @@ import {
 } from 'lucide-react';
 
 export function Dashboard() {
-  const { data, loading, error } = useDashboardData();
+  const { data, loading, hasLoaded, error } = useDashboardData();
   const [selected, setSelected] = useState('inscritos');
 
-  if (loading && !data.inscritos) {
+  if (!hasLoaded) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-bg-base">
         <div className="flex flex-col items-center space-y-4">

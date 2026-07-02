@@ -139,6 +139,7 @@ async function applySendflowMetrics(base: DashboardData): Promise<DashboardData>
 export function useDashboardData() {
   const [data, setData] = useState<DashboardData>(MOCK_DATA);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -160,6 +161,7 @@ export function useDashboardData() {
              const withSendflow = await applySendflowMetrics(withMeta);
              setData(withSendflow);
              setError(null);
+             setHasLoaded(true);
           }
         },
         error: (error: any) => {
@@ -172,6 +174,7 @@ export function useDashboardData() {
       console.error("Failed to fetch sheet data", err);
       setError("Erro ao processar dados da planilha. Exibindo dados simulados.");
       setData(MOCK_DATA);
+      setHasLoaded(true);
     } finally {
       setLoading(false);
     }
@@ -183,6 +186,6 @@ export function useDashboardData() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  return { data, loading, error, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
+  return { data, loading, hasLoaded, error, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
 }
 
