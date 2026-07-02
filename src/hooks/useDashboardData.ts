@@ -136,6 +136,23 @@ async function applySendflowMetrics(base: DashboardData): Promise<DashboardData>
   return base;
 }
 
+// "Total de Inscritos" vem da planilha Inscritos_29_06, deduplicado por e-mail
+// no servidor (/api/inscritos, que não expõe dados pessoais). Fallback: mantém o
+// valor que veio da planilha de métricas.
+async function applyInscritosMetrics(base: DashboardData): Promise<DashboardData> {
+  try {
+    const res = await fetch('/api/inscritos', { cache: 'no-store' });
+    if (!res.ok) return base;
+    const info = await res.json();
+    if (info && typeof info.inscritos === 'number') {
+      return { ...base, inscritos: info.inscritos };
+    }
+    return base;
+  } catch {
+    return base;
+  }
+}
+
 export function useDashboardData() {
   const [data, setData] = useState<DashboardData>(MOCK_DATA);
   const [loading, setLoading] = useState(true);
@@ -159,7 +176,8 @@ export function useDashboardData() {
              const values = extractDashboardValues(results.data as any[][]);
              const withMeta = await applyMetaMetrics(values);
              const withSendflow = await applySendflowMetrics(withMeta);
-             setData(withSendflow);
+             const withInscritos = await applyInscritosMetrics(withSendflow);
+             setData(withInscritos);
              setError(null);
              setHasLoaded(true);
           }
