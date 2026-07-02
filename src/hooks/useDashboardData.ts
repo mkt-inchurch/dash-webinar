@@ -153,6 +153,23 @@ async function applyInscritosMetrics(base: DashboardData): Promise<DashboardData
   }
 }
 
+// "Total de Pesquisas" vem da planilha de pesquisa (aba "Pesquisa - Webinar IA na
+// Igreja"), deduplicado por e-mail e só a partir de 19/06/2026 — processado no
+// servidor (/api/pesquisas). Fallback: valor da planilha de métricas.
+async function applyPesquisasMetrics(base: DashboardData): Promise<DashboardData> {
+  try {
+    const res = await fetch('/api/pesquisas', { cache: 'no-store' });
+    if (!res.ok) return base;
+    const info = await res.json();
+    if (info && typeof info.pesquisas === 'number') {
+      return { ...base, pesquisas: info.pesquisas };
+    }
+    return base;
+  } catch {
+    return base;
+  }
+}
+
 export function useDashboardData() {
   const [data, setData] = useState<DashboardData>(MOCK_DATA);
   const [loading, setLoading] = useState(true);
@@ -177,7 +194,8 @@ export function useDashboardData() {
              const withMeta = await applyMetaMetrics(values);
              const withSendflow = await applySendflowMetrics(withMeta);
              const withInscritos = await applyInscritosMetrics(withSendflow);
-             setData(withInscritos);
+             const withPesquisas = await applyPesquisasMetrics(withInscritos);
+             setData(withPesquisas);
              setError(null);
              setHasLoaded(true);
           }
