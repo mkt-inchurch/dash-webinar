@@ -94,6 +94,28 @@ function extractDashboardValues(grid: any[][]): DashboardData {
 
 const PUBLIC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ79hHc73Ww0MB6Nb7-OAxCfuqH4I_KS3oAtHsNR-bhDhNRLGAcI5wyYalG7m_1TWeW44hMb6hTUC1o/pub?gid=1000295038&single=true&output=csv";
 
+// Métricas de captação vêm direto do Meta Ads (via /api/meta). Se a função não
+// estiver disponível (ex.: `vite dev` sem serverless) ou faltar token, mantém os
+// valores da planilha como fallback.
+async function applyMetaMetrics(base: DashboardData): Promise<DashboardData> {
+  try {
+    const res = await fetch('/api/meta');
+    if (!res.ok) return base;
+    const meta = await res.json();
+    if (meta && typeof meta.investimentoTrafego === 'number' && typeof meta.leadsMeta === 'number') {
+      return {
+        ...base,
+        investimentoTrafego: meta.investimentoTrafego,
+        leadsMeta: meta.leadsMeta,
+        cplMeta: meta.cplMeta,
+      };
+    }
+    return base;
+  } catch {
+    return base;
+  }
+}
+
 export function useDashboardData() {
   const [data, setData] = useState<DashboardData>(MOCK_DATA);
   const [loading, setLoading] = useState(true);
@@ -111,10 +133,11 @@ export function useDashboardData() {
       const csvText = await res.text();
       
       Papa.parse(csvText, {
-        complete: (results) => {
+        complete: async (results) => {
           if (results.data && Array.isArray(results.data)) {
              const values = extractDashboardValues(results.data as any[][]);
-             setData(values);
+             const withMeta = await applyMetaMetrics(values);
+             setData(withMeta);
              setError(null);
           }
         },
