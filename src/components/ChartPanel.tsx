@@ -12,6 +12,7 @@ interface ChartSpec {
   subtitle?: string;
   format?: 'number' | 'currency';
   highlight?: string;
+  highlightAll?: boolean;
   data?: { name: string; value: number }[];
 }
 
@@ -32,6 +33,21 @@ function getChartSpec(key: string, data: DashboardData): ChartSpec {
     case 'pesquisas':
       return { type: 'bar', title: 'Funil de Conversão', subtitle: 'Etapa destacada: Pesquisas', format: 'number', highlight: 'Pesquisas', data: funnel };
     case 'icps':
+      if (data.icp) {
+        return {
+          type: 'bar',
+          title: 'Perfis de ICP (P1–P4)',
+          subtitle: 'Leads qualificados por perfil · dedup por e-mail, a partir de 19/06',
+          format: 'number',
+          highlightAll: true,
+          data: [
+            { name: 'P1', value: data.icp.p1 },
+            { name: 'P2', value: data.icp.p2 },
+            { name: 'P3', value: data.icp.p3 },
+            { name: 'P4', value: data.icp.p4 },
+          ],
+        };
+      }
       return { type: 'bar', title: 'Funil de Conversão', subtitle: 'Etapa destacada: ICPs', format: 'number', highlight: 'ICPs', data: funnel };
     case 'diagnosticos':
       return { type: 'bar', title: 'Funil de Conversão', subtitle: 'Etapa destacada: Diagnósticos', format: 'number', highlight: 'Diagnósticos', data: funnel };
@@ -144,7 +160,7 @@ export const ChartPanel: FC<ChartPanelProps> = ({ selected, data }) => {
             />
             <Bar dataKey="value" radius={[6, 6, 0, 0]} animationDuration={800}>
               {spec.data!.map((entry, index) => (
-                <Cell key={index} fill={entry.name === spec.highlight ? '#00E330' : '#2A2F35'} />
+                <Cell key={index} fill={spec.highlightAll || entry.name === spec.highlight ? '#00E330' : '#2A2F35'} />
               ))}
             </Bar>
           </BarChart>

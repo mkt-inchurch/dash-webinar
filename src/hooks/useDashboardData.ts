@@ -170,6 +170,27 @@ async function applyPesquisasMetrics(base: DashboardData): Promise<DashboardData
   }
 }
 
+// "Total de ICPs" (P1–P4) vem da planilha de pesquisa, classificado e deduplicado
+// por e-mail no servidor (/api/icps). Sobrescreve o total e guarda o detalhamento
+// P1–P4 para o gráfico do card. Fallback: valor da planilha de métricas.
+async function applyIcpsMetrics(base: DashboardData): Promise<DashboardData> {
+  try {
+    const res = await fetch('/api/icps', { cache: 'no-store' });
+    if (!res.ok) return base;
+    const info = await res.json();
+    if (info && typeof info.icps === 'number') {
+      return {
+        ...base,
+        icps: info.icps,
+        icp: { p1: info.p1, p2: info.p2, p3: info.p3, p4: info.p4 },
+      };
+    }
+    return base;
+  } catch {
+    return base;
+  }
+}
+
 export function useDashboardData() {
   const [data, setData] = useState<DashboardData>(MOCK_DATA);
   const [loading, setLoading] = useState(true);
@@ -195,7 +216,8 @@ export function useDashboardData() {
              const withSendflow = await applySendflowMetrics(withMeta);
              const withInscritos = await applyInscritosMetrics(withSendflow);
              const withPesquisas = await applyPesquisasMetrics(withInscritos);
-             setData(withPesquisas);
+             const withIcps = await applyIcpsMetrics(withPesquisas);
+             setData(withIcps);
              setError(null);
              setHasLoaded(true);
           }
