@@ -28,6 +28,9 @@ export default async function handler(_req, res) {
 
     if (!response.ok) {
       const text = await response.text();
+      // Cacheia o erro por alguns minutos para NÃO martelar a API do Sendflow em
+      // rajada (o rate limit dela é rígido). O front cai no /sendflow.json nesse caso.
+      res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
       return res.status(502).json({ error: `Sendflow respondeu ${response.status}`, detail: text.slice(0, 200) });
     }
 
