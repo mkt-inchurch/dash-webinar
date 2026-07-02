@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { KPICard } from './KPICard';
 import { ChartPanel } from './ChartPanel';
+import { DateFilter } from './DateFilter';
+import { fullRange, applyDateFilter, isFullRange, DateRange } from '../lib/dateFilter';
 import { formatCurrency, formatNumber, formatPercent } from '../lib/utils';
 import { META_INSCRITOS } from '../lib/constants';
 import {
@@ -16,15 +18,41 @@ import {
 } from 'lucide-react';
 
 export function Dashboard() {
-  const { data, loading, hasLoaded, error } = useDashboardData();
+  const { data: rawData, series, loading, hasLoaded, error } = useDashboardData();
   const [selected, setSelected] = useState('inscritos');
+  const [range, setRange] = useState<DateRange | null>(null);
+
+  const full = useMemo(() => fullRange(series), [series]);
+
+  // Quando as séries chegam, inicializa o intervalo com o período completo.
+  useEffect(() => {
+    const hasSeries =
+      series.inscritos.length || series.pesquisas.length || series.icps.length || series.meta.length;
+    if (hasSeries) setRange((prev) => prev ?? full);
+  }, [full, series]);
+
+  const activeRange = range ?? full;
+  const filtered = !!range && !isFullRange(activeRange, full);
+  const data = useMemo(
+    () => applyDateFilter(rawData, series, activeRange),
+    [rawData, series, activeRange]
+  );
+
+  // Taxas de conversão recomputadas dos valores exibidos (consistentes com o filtro).
+  const taxaPesqIcp = data.pesquisas ? data.icps / data.pesquisas : 0;
+  const taxaInscGrupo = data.inscritos ? data.entradasGrupo / data.inscritos : 0;
+  const taxaGrupoPesq = data.entradasGrupo ? data.pesquisas / data.entradasGrupo : 0;
+
+  const grayFooter = (text: string) => (
+    <span className="text-xs font-mono text-gray-500">{text}</span>
+  );
 
   if (!hasLoaded) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-bg-base">
         <div className="flex flex-col items-center space-y-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-bg-card-border border-t-in-green" />
-          <p className="text-gray-400 font-mono text-sm animate-pulse">Sincronizando com Google Sheets...</p>
+          <p className="text-gray-400 font-mono text-sm animate-pulse">Sincronizando dados...</p>
         </div>
       </div>
     );
@@ -49,7 +77,7 @@ export function Dashboard() {
               <p className="text-xs text-in-green font-mono">MÉTRICAS</p>
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
             {error && (
               <div className="flex items-center space-x-2 bg-yellow-500/10 text-yellow-500 px-4 py-2 rounded-full text-sm font-medium border border-yellow-500/20">
@@ -70,6 +98,15 @@ export function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
 
+        {/* Filtro temporal */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border border-bg-card-border bg-bg-card rounded-xl px-4 py-3">
+          <DateFilter range={activeRange} full={full} onChange={setRange} />
+          <span className="text-xs text-gray-500">
+            {filtered
+              ? 'Período selecionado · Entradas no Grupo não filtra por data'
+              : 'Todo o período do webinar'}
+          </span>
+        </div>
 
         {/* Core Metrics Grid */}
         <div>
@@ -86,9 +123,13 @@ export function Dashboard() {
               active={selected === 'inscritos'}
               onClick={() => setSelected('inscritos')}
               footer={
-                <span className="text-xs font-semibold text-in-green">
-                  {formatPercent(data.inscritos / META_INSCRITOS)} da meta ({formatNumber(META_INSCRITOS)})
-                </span>
+                filtered
+                  ? grayFooter('no período selecionado')
+                  : (
+                    <span className="text-xs font-semibold text-in-green">
+                      {formatPercent(data.inscritos / META_INSCRITOS)} da meta ({formatNumber(META_INSCRITOS)})
+                    </span>
+                  )
               }
             />
             <KPICard
@@ -99,9 +140,13 @@ export function Dashboard() {
               active={selected === 'entradasGrupo'}
               onClick={() => setSelected('entradasGrupo')}
               footer={
-                <span className="text-xs font-semibold text-in-green">
-                  {formatPercent(data.taxaInscritosGrupo)} · Inscritos → Grupo
-                </span>
+                filtered
+                  ? grayFooter('total ao vivo · sem filtro')
+                  : (
+                    <span className="text-xs font-semibold text-in-green">
+                      {formatPercent(taxaInscGrupo)} · Inscritos → Grupo
+                    </span>
+                  )
               }
             />
             <KPICard
@@ -112,9 +157,13 @@ export function Dashboard() {
               active={selected === 'pesquisas'}
               onClick={() => setSelected('pesquisas')}
               footer={
-                <span className="text-xs font-semibold text-in-green">
-                  {formatPercent(data.taxaGrupoPesquisa)} · Grupo → Pesquisa
-                </span>
+                filtered
+                  ? undefined
+                  : (
+                    <span className="text-xs font-semibold text-in-green">
+                      {formatPercent(taxaGrupoPesq)} · Grupo → Pesquisa
+                    </span>
+                  )
               }
             />
             <KPICard
@@ -126,7 +175,7 @@ export function Dashboard() {
               onClick={() => setSelected('icps')}
               footer={
                 <span className="text-xs font-semibold text-in-green">
-                  {formatPercent(data.taxaPesquisaIcp)} · Pesquisa → ICPs
+                  {formatPercent(taxaPesqIcp)} · Pesquisa → ICPs
                 </span>
               }
             />

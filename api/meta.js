@@ -19,7 +19,8 @@ async function fetchCampaigns(token) {
       level: 'campaign',
       fields: 'campaign_id,campaign_name,spend,actions',
       time_range: JSON.stringify({ since: CAPTACAO_INICIO, until }),
-      limit: '200',
+      time_increment: '1', // quebra diária, para o filtro temporal do dashboard
+      limit: '500',
       access_token: token,
     });
 
@@ -41,21 +42,30 @@ export default async function handler(_req, res) {
   }
 
   try {
-    const campaigns = await fetchCampaigns(token);
+    const rows = await fetchCampaigns(token);
 
-    let spend = 0;
-    let leads = 0;
-    let campanhas = 0;
-    for (const row of campaigns) {
+    // Cada linha é uma campanha em um dia (time_increment=1). Soma por dia, só
+    // campanhas WEBINAR_IA.
+    const byDay = {};
+    const campanhasIds = new Set();
+    for (const row of rows) {
       if (!String(row.campaign_name || '').includes(CAMPAIGN_NAME_MATCH)) continue;
+      const day = row.date_start;
       const s = parseFloat(row.spend || '0');
       const leadAction = (row.actions || []).find((a) => a.action_type === 'lead');
       const l = leadAction ? parseFloat(leadAction.value || '0') : 0;
-      spend += s;
-      leads += l;
-      if (s > 0 || l > 0) campanhas++;
+      if (!byDay[day]) byDay[day] = { spend: 0, leads: 0 };
+      byDay[day].spend += s;
+      byDay[day].leads += l;
+      if (s > 0 || l > 0) campanhasIds.add(row.campaign_id);
     }
 
+    const porDia = Object.entries(byDay)
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([data, v]) => ({ data, spend: v.spend, leads: v.leads }));
+
+    let spend = 0, leads = 0;
+    for (const d of porDia) { spend += d.spend; leads += d.leads; }
     const cpl = leads > 0 ? spend / leads : 0;
 
     // Cache na borda da Vercel por 5 min (mesma cadência do resto do dashboard).
@@ -64,7 +74,8 @@ export default async function handler(_req, res) {
       investimentoTrafego: spend,
       leadsMeta: leads,
       cplMeta: cpl,
-      campanhas,
+      campanhas: campanhasIds.size,
+      porDia,
     });
   } catch (err) {
     return res.status(500).json({ error: String(err) });

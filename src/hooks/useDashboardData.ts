@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { DashboardData } from '../types';
+import { DashboardData, DashboardSeries } from '../types';
 import Papa from 'papaparse';
+
+const EMPTY_SERIES: DashboardSeries = { inscritos: [], pesquisas: [], icps: [], meta: [] };
 
 // Realistic mock data
 const MOCK_DATA: DashboardData = {
@@ -97,12 +99,13 @@ const PUBLIC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ79hHc7
 // Métricas de captação vêm direto do Meta Ads (via /api/meta). Se a função não
 // estiver disponível (ex.: `vite dev` sem serverless) ou faltar token, mantém os
 // valores da planilha como fallback.
-async function applyMetaMetrics(base: DashboardData): Promise<DashboardData> {
+async function applyMetaMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
   try {
     const res = await fetch('/api/meta');
     if (!res.ok) return base;
     const meta = await res.json();
     if (meta && typeof meta.investimentoTrafego === 'number' && typeof meta.leadsMeta === 'number') {
+      if (Array.isArray(meta.porDia)) series.meta = meta.porDia;
       return {
         ...base,
         investimentoTrafego: meta.investimentoTrafego,
@@ -139,12 +142,13 @@ async function applySendflowMetrics(base: DashboardData): Promise<DashboardData>
 // "Total de Inscritos" vem da planilha Inscritos_29_06, deduplicado por e-mail
 // no servidor (/api/inscritos, que não expõe dados pessoais). Fallback: mantém o
 // valor que veio da planilha de métricas.
-async function applyInscritosMetrics(base: DashboardData): Promise<DashboardData> {
+async function applyInscritosMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
   try {
     const res = await fetch('/api/inscritos', { cache: 'no-store' });
     if (!res.ok) return base;
     const info = await res.json();
     if (info && typeof info.inscritos === 'number') {
+      if (Array.isArray(info.porDia)) series.inscritos = info.porDia;
       return { ...base, inscritos: info.inscritos };
     }
     return base;
@@ -156,12 +160,13 @@ async function applyInscritosMetrics(base: DashboardData): Promise<DashboardData
 // "Total de Pesquisas" vem da planilha de pesquisa (aba "Pesquisa - Webinar IA na
 // Igreja"), deduplicado por e-mail e só a partir de 19/06/2026 — processado no
 // servidor (/api/pesquisas). Fallback: valor da planilha de métricas.
-async function applyPesquisasMetrics(base: DashboardData): Promise<DashboardData> {
+async function applyPesquisasMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
   try {
     const res = await fetch('/api/pesquisas', { cache: 'no-store' });
     if (!res.ok) return base;
     const info = await res.json();
     if (info && typeof info.pesquisas === 'number') {
+      if (Array.isArray(info.porDia)) series.pesquisas = info.porDia;
       return { ...base, pesquisas: info.pesquisas };
     }
     return base;
@@ -173,12 +178,13 @@ async function applyPesquisasMetrics(base: DashboardData): Promise<DashboardData
 // "Total de ICPs" (P1–P4) vem da planilha de pesquisa, classificado e deduplicado
 // por e-mail no servidor (/api/icps). Sobrescreve o total e guarda o detalhamento
 // P1–P4 para o gráfico do card. Fallback: valor da planilha de métricas.
-async function applyIcpsMetrics(base: DashboardData): Promise<DashboardData> {
+async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
   try {
     const res = await fetch('/api/icps', { cache: 'no-store' });
     if (!res.ok) return base;
     const info = await res.json();
     if (info && typeof info.icps === 'number') {
+      if (Array.isArray(info.porDia)) series.icps = info.porDia;
       return {
         ...base,
         icps: info.icps,
@@ -193,6 +199,7 @@ async function applyIcpsMetrics(base: DashboardData): Promise<DashboardData> {
 
 export function useDashboardData() {
   const [data, setData] = useState<DashboardData>(MOCK_DATA);
+  const [series, setSeries] = useState<DashboardSeries>(EMPTY_SERIES);
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -212,12 +219,14 @@ export function useDashboardData() {
         complete: async (results) => {
           if (results.data && Array.isArray(results.data)) {
              const values = extractDashboardValues(results.data as any[][]);
-             const withMeta = await applyMetaMetrics(values);
+             const s: DashboardSeries = { inscritos: [], pesquisas: [], icps: [], meta: [] };
+             const withMeta = await applyMetaMetrics(values, s);
              const withSendflow = await applySendflowMetrics(withMeta);
-             const withInscritos = await applyInscritosMetrics(withSendflow);
-             const withPesquisas = await applyPesquisasMetrics(withInscritos);
-             const withIcps = await applyIcpsMetrics(withPesquisas);
+             const withInscritos = await applyInscritosMetrics(withSendflow, s);
+             const withPesquisas = await applyPesquisasMetrics(withInscritos, s);
+             const withIcps = await applyIcpsMetrics(withPesquisas, s);
              setData(withIcps);
+             setSeries(s);
              setError(null);
              setHasLoaded(true);
           }
@@ -244,6 +253,6 @@ export function useDashboardData() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  return { data, loading, hasLoaded, error, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
+  return { data, series, loading, hasLoaded, error, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
 }
 

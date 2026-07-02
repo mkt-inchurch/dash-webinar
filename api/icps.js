@@ -68,14 +68,22 @@ export default async function handler(_req, res) {
     }
 
     const counts = { p1: 0, p2: 0, p3: 0, p4: 0 };
-    for (const { filtro } of firstByEmail.values()) {
+    const byDay = {};
+    for (const { iso, filtro } of firstByEmail.values()) {
       const perfil = filtro.toUpperCase();
-      if (PERFIS.includes(perfil)) counts[perfil.toLowerCase()]++;
+      if (!PERFIS.includes(perfil)) continue;
+      const k = perfil.toLowerCase();
+      counts[k]++;
+      if (!byDay[iso]) byDay[iso] = { p1: 0, p2: 0, p3: 0, p4: 0 };
+      byDay[iso][k]++;
     }
     const icps = counts.p1 + counts.p2 + counts.p3 + counts.p4;
+    const porDia = Object.entries(byDay)
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([data, v]) => ({ data, ...v }));
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({ icps, ...counts, desde: CUTOFF });
+    return res.status(200).json({ icps, ...counts, desde: CUTOFF, porDia });
   } catch (err) {
     return res.status(500).json({ error: String(err) });
   }
