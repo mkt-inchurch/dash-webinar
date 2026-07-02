@@ -116,6 +116,23 @@ async function applyMetaMetrics(base: DashboardData): Promise<DashboardData> {
   }
 }
 
+// "Entradas no Grupo" vem do Sendflow (grupo Webinar: IA na Igreja #3). O número
+// é sincronizado periodicamente para public/sendflow.json (lido via nosso MCP do
+// Sendflow). Se o arquivo não existir/estiver inválido, mantém o valor da planilha.
+async function applySendflowMetrics(base: DashboardData): Promise<DashboardData> {
+  try {
+    const res = await fetch('/sendflow.json', { cache: 'no-store' });
+    if (!res.ok) return base;
+    const sf = await res.json();
+    if (sf && typeof sf.entradasGrupo === 'number') {
+      return { ...base, entradasGrupo: sf.entradasGrupo };
+    }
+    return base;
+  } catch {
+    return base;
+  }
+}
+
 export function useDashboardData() {
   const [data, setData] = useState<DashboardData>(MOCK_DATA);
   const [loading, setLoading] = useState(true);
@@ -137,7 +154,8 @@ export function useDashboardData() {
           if (results.data && Array.isArray(results.data)) {
              const values = extractDashboardValues(results.data as any[][]);
              const withMeta = await applyMetaMetrics(values);
-             setData(withMeta);
+             const withSendflow = await applySendflowMetrics(withMeta);
+             setData(withSendflow);
              setError(null);
           }
         },
