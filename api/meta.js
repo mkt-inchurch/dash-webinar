@@ -6,15 +6,19 @@
 
 const AD_ACCOUNT_ID = '1511142633474747'; // InChurch 03 [Cartão de crédito]
 const CAMPAIGN_NAME_MATCH = 'WEBINAR_IA'; // filtra as campanhas de captação do webinar
+const CAPTACAO_INICIO = '2026-06-19'; // início da captação (ignora webinars anteriores)
 const GRAPH_VERSION = 'v21.0';
 
 async function fetchCampaigns(token) {
+  // Recorte a partir de 19/06: campanhas antigas com "WEBINAR_IA" no nome (de um
+  // webinar anterior) zeram nessa janela e não entram no total.
+  const until = new Date().toISOString().slice(0, 10);
   let url =
     `https://graph.facebook.com/${GRAPH_VERSION}/act_${AD_ACCOUNT_ID}/insights?` +
     new URLSearchParams({
       level: 'campaign',
       fields: 'campaign_id,campaign_name,spend,actions',
-      date_preset: 'maximum', // campanhas do webinar começam em 19/06 = vida toda
+      time_range: JSON.stringify({ since: CAPTACAO_INICIO, until }),
       limit: '200',
       access_token: token,
     });
