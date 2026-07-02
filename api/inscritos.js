@@ -5,6 +5,7 @@
 const SHEET_ID = '1QkFMFOCMMAzj3BgEoiCtTD_YHSu48p51xmu9Y3TaulM';
 const SHEET_TAB = 'Inscritos_29_06';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TAB)}`;
+const CUTOFF = '2026-06-19'; // considera apenas inscritos de 19/06 em diante
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
 
@@ -47,17 +48,17 @@ export default async function handler(_req, res) {
     const iData = header.indexOf('Data');
     if (iEmail === -1) return res.status(500).json({ error: 'Coluna Email não encontrada' });
 
-    // Dedup por e-mail, guardando a data de PRIMEIRA inscrição de cada pessoa.
+    // Dedup por e-mail (só inscritos a partir do CUTOFF), guardando a data de
+    // PRIMEIRA inscrição (>= CUTOFF) de cada pessoa.
     const firstByEmail = new Map();
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       const email = String(row[iEmail] || '').trim().toLowerCase();
       if (!email) continue;
       const iso = iData === -1 ? null : toISO(row[iData]);
+      if (!iso || iso < CUTOFF) continue; // fora da janela (antes de 19/06 ou sem data)
       const cur = firstByEmail.get(email);
-      if (cur === undefined || (iso && (cur === null || iso < cur))) {
-        firstByEmail.set(email, iso ?? cur ?? null);
-      }
+      if (cur === undefined || iso < cur) firstByEmail.set(email, iso);
     }
 
     const total = firstByEmail.size;
@@ -76,7 +77,7 @@ export default async function handler(_req, res) {
     for (const d of porDia) { acc += d.novos; d.acumulado = acc; }
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({ inscritos: total, porDia });
+    return res.status(200).json({ inscritos: total, desde: CUTOFF, porDia });
   } catch (err) {
     return res.status(500).json({ error: String(err) });
   }
