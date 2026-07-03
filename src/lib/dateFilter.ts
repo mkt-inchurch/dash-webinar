@@ -48,9 +48,16 @@ export function applyDateFilter(base: DashboardData, series: DashboardSeries, r:
   if (series.meta.length) {
     const spend = sum(series.meta, (d) => d.spend);
     const leads = sum(series.meta, (d) => d.leads);
+    const impressions = sum(series.meta, (d) => d.impressions);
+    const linkClicks = sum(series.meta, (d) => d.linkClicks);
+    const lpViews = sum(series.meta, (d) => d.lpViews);
     out.investimentoTrafego = spend;
     out.leadsMeta = leads;
     out.cplMeta = leads > 0 ? spend / leads : 0;
+    out.cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+    out.ctrLink = impressions > 0 ? linkClicks / impressions : 0;
+    out.connectRate = linkClicks > 0 ? lpViews / linkClicks : 0;
+    out.convPagina = lpViews > 0 ? leads / lpViews : 0;
   }
 
   // CPL Real = Investimento ÷ Inscritos ADS (custo por inscrito vindo de anúncio).

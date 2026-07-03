@@ -17,6 +17,10 @@ import {
   TrendingDown,
   DollarSign,
   Megaphone,
+  Percent,
+  MousePointerClick,
+  Link2,
+  Eye,
   AlertCircle
 } from 'lucide-react';
 
@@ -227,6 +231,37 @@ export function Dashboard() {
               highlight={data.cplReal <= data.cplMeta}
               active={selected === 'cplReal'}
               onClick={() => setSelected('cplReal')}
+            />
+          </div>
+        </div>
+
+        {/* Métricas de Anúncio */}
+        <div>
+          <h2 className="text-sm font-mono text-gray-500 mb-4 px-2 uppercase tracking-widest">Métricas de Anúncio</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KPICard
+              title="Conversão da Página"
+              value={formatPercent(data.convPagina ?? 0)}
+              icon={<Percent className="w-5 h-5" />}
+              delay={0.4}
+            />
+            <KPICard
+              title="CTR (Link)"
+              value={formatPercent(data.ctrLink ?? 0)}
+              icon={<MousePointerClick className="w-5 h-5" />}
+              delay={0.5}
+            />
+            <KPICard
+              title="Connect Rate"
+              value={formatPercent(data.connectRate ?? 0)}
+              icon={<Link2 className="w-5 h-5" />}
+              delay={0.6}
+            />
+            <KPICard
+              title="CPM"
+              value={formatCurrency(data.cpm ?? 0)}
+              icon={<Eye className="w-5 h-5" />}
+              delay={0.7}
             />
           </div>
         </div>

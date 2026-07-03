@@ -17,7 +17,7 @@ async function fetchCampaigns(token) {
     `https://graph.facebook.com/${GRAPH_VERSION}/act_${AD_ACCOUNT_ID}/insights?` +
     new URLSearchParams({
       level: 'campaign',
-      fields: 'campaign_id,campaign_name,spend,actions',
+      fields: 'campaign_id,campaign_name,spend,impressions,actions',
       time_range: JSON.stringify({ since: CAPTACAO_INICIO, until }),
       time_increment: '1', // quebra diária, para o filtro temporal do dashboard
       limit: '500',
@@ -46,23 +46,40 @@ export default async function handler(_req, res) {
 
     // Cada linha é uma campanha em um dia (time_increment=1). Soma por dia, só
     // campanhas WEBINAR_IA.
+    const actionVal = (actions, type) => {
+      const a = (actions || []).find((x) => x.action_type === type);
+      return a ? parseFloat(a.value || '0') : 0;
+    };
+
     const byDay = {};
     const campanhasIds = new Set();
     for (const row of rows) {
       if (!String(row.campaign_name || '').includes(CAMPAIGN_NAME_MATCH)) continue;
       const day = row.date_start;
       const s = parseFloat(row.spend || '0');
-      const leadAction = (row.actions || []).find((a) => a.action_type === 'lead');
-      const l = leadAction ? parseFloat(leadAction.value || '0') : 0;
-      if (!byDay[day]) byDay[day] = { spend: 0, leads: 0 };
+      const l = actionVal(row.actions, 'lead');
+      const imp = parseInt(row.impressions || '0', 10) || 0;
+      const linkClicks = actionVal(row.actions, 'link_click');
+      const lpViews = actionVal(row.actions, 'landing_page_view');
+      if (!byDay[day]) byDay[day] = { spend: 0, leads: 0, impressions: 0, linkClicks: 0, lpViews: 0 };
       byDay[day].spend += s;
       byDay[day].leads += l;
+      byDay[day].impressions += imp;
+      byDay[day].linkClicks += linkClicks;
+      byDay[day].lpViews += lpViews;
       if (s > 0 || l > 0) campanhasIds.add(row.campaign_id);
     }
 
     const porDia = Object.entries(byDay)
       .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-      .map(([data, v]) => ({ data, spend: v.spend, leads: v.leads }));
+      .map(([data, v]) => ({
+        data,
+        spend: v.spend,
+        leads: v.leads,
+        impressions: v.impressions,
+        linkClicks: v.linkClicks,
+        lpViews: v.lpViews,
+      }));
 
     let spend = 0, leads = 0;
     for (const d of porDia) { spend += d.spend; leads += d.leads; }
