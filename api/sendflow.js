@@ -1,8 +1,11 @@
 // Vercel Serverless Function — "Entradas no Grupo" a partir do Sendflow.
-// Usa o endpoint de analytics da campanha (add/remove por dia = o que aparece no
-// painel de entradas/saídas). É NÍVEL CAMPANHA (todos os grupos) — a API não expõe
-// histórico diário isolado por grupo. Valor = entradas líquidas (add − remove) a
-// partir de 19/06, e retorna a série diária (porDia) para o filtro temporal.
+// Usa o endpoint de analytics da campanha (add/remove por dia = o painel de
+// entradas/saídas). Valor = ENTRADAS (brutas) por dia a partir de 19/06.
+// Isso equivale às entradas do grupo #3: como os grupos #1 e #2 já estavam cheios
+// antes de 19/06, toda entrada nova a partir daí vai para o #3 (bate exato com o
+// "Entraram" do painel). As SAÍDAS isoladas por grupo não vêm na API pública
+// (o analytics só dá saídas da campanha inteira), por isso não são descontadas.
+// Retorna a série diária (porDia) para o filtro temporal.
 // Token seguro no servidor (env var SENDFLOW_API_KEY).
 
 const RELEASE_ID = 'hZh6HtKTvj9jUu8ZYbml'; // Campanha: Webinar: IA na Igreja
@@ -40,17 +43,12 @@ export default async function handler(_req, res) {
 
     const data = await response.json();
     const add = (data.add && data.add.dates) || {};
-    const remove = (data.remove && data.remove.dates) || {};
 
-    // Líquido por dia (entradas − saídas), só a partir do CUTOFF.
+    // Entradas (brutas) por dia, só a partir do CUTOFF.
     const byDay = {};
     for (const [k, v] of Object.entries(add)) {
       const iso = keyToISO(k);
       if (iso && iso >= CUTOFF) byDay[iso] = (byDay[iso] || 0) + Number(v || 0);
-    }
-    for (const [k, v] of Object.entries(remove)) {
-      const iso = keyToISO(k);
-      if (iso && iso >= CUTOFF) byDay[iso] = (byDay[iso] || 0) - Number(v || 0);
     }
 
     const porDia = Object.entries(byDay)
