@@ -32,6 +32,7 @@ export function applyDateFilter(base: DashboardData, series: DashboardSeries, r:
   const out: DashboardData = { ...base };
 
   if (series.inscritos.length) out.inscritos = sum(series.inscritos, (d) => d.novos);
+  if (series.inscritosAds.length) out.inscritosAds = sum(series.inscritosAds, (d) => d.novos);
   if (series.pesquisas.length) out.pesquisas = sum(series.pesquisas, (d) => d.novos);
   if (series.grupo.length) out.entradasGrupo = sum(series.grupo, (d) => d.novos);
 

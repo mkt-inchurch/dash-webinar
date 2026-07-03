@@ -16,6 +16,7 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
+  Megaphone,
   AlertCircle
 } from 'lucide-react';
 
@@ -46,6 +47,7 @@ export function Dashboard() {
   const pctGrupo = data.inscritos ? data.entradasGrupo / data.inscritos : 0;
   const pctPesquisas = data.inscritos ? data.pesquisas / data.inscritos : 0;
   const pctIcps = data.inscritos ? data.icps / data.inscritos : 0;
+  const pctAds = data.inscritos && data.inscritosAds != null ? data.inscritosAds / data.inscritos : 0;
 
   const pctFooter = (v: number) => (
     <span className="flex items-center gap-1 text-sm font-semibold text-in-green">
@@ -184,7 +186,7 @@ export function Dashboard() {
         {/* Financial / Tráfego */}
         <div>
           <h2 className="text-sm font-mono text-gray-500 mb-4 px-2 uppercase tracking-widest">Financeiro & Tráfego</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <KPICard
               title="Investimento Total"
               value={formatCurrency(data.investimentoTrafego)}
@@ -200,6 +202,15 @@ export function Dashboard() {
               delay={0.5}
               active={selected === 'leadsMeta'}
               onClick={() => setSelected('leadsMeta')}
+            />
+            <KPICard
+              title="Inscritos ADS"
+              value={formatNumber(data.inscritosAds ?? 0)}
+              icon={<Megaphone className="w-5 h-5" />}
+              delay={0.55}
+              active={selected === 'inscritosAds'}
+              onClick={() => setSelected('inscritosAds')}
+              footer={data.inscritosAds != null ? pctFooter(pctAds) : undefined}
             />
             <KPICard
               title="CPA / CPL (Meta)"

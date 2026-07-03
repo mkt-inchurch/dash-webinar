@@ -75,6 +75,18 @@ function getChartSpec(key: string, data: DashboardData): ChartSpec {
           { name: 'Real (Inscritos)', value: data.inscritos },
         ],
       };
+    case 'inscritosAds':
+      return {
+        type: 'bar',
+        title: 'Tráfego: Leads (Meta) vs Inscritos ADS',
+        subtitle: 'Leads reportados pelo Meta vs quem realmente se inscreveu (UTM WEBINAR_IA)',
+        format: 'number',
+        highlight: 'Inscritos ADS',
+        data: [
+          { name: 'Leads (Meta)', value: data.leadsMeta },
+          { name: 'Inscritos ADS', value: data.inscritosAds ?? 0 },
+        ],
+      };
     case 'cplMeta':
       return {
         type: 'bar',

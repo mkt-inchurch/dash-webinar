@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { DashboardData, DashboardSeries } from '../types';
 import Papa from 'papaparse';
 
-const EMPTY_SERIES: DashboardSeries = { inscritos: [], pesquisas: [], grupo: [], icps: [], meta: [] };
+const EMPTY_SERIES: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], icps: [], meta: [] };
 
 // Realistic mock data
 const MOCK_DATA: DashboardData = {
@@ -154,7 +154,12 @@ async function applyInscritosMetrics(base: DashboardData, series: DashboardSerie
     const info = await res.json();
     if (info && typeof info.inscritos === 'number') {
       if (Array.isArray(info.porDia)) series.inscritos = info.porDia;
-      return { ...base, inscritos: info.inscritos };
+      if (Array.isArray(info.porDiaAds)) series.inscritosAds = info.porDiaAds;
+      return {
+        ...base,
+        inscritos: info.inscritos,
+        ...(typeof info.inscritosAds === 'number' ? { inscritosAds: info.inscritosAds } : {}),
+      };
     }
     return base;
   } catch {
@@ -224,7 +229,7 @@ export function useDashboardData() {
         complete: async (results) => {
           if (results.data && Array.isArray(results.data)) {
              const values = extractDashboardValues(results.data as any[][]);
-             const s: DashboardSeries = { inscritos: [], pesquisas: [], grupo: [], icps: [], meta: [] };
+             const s: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], icps: [], meta: [] };
              const withMeta = await applyMetaMetrics(values, s);
              const withSendflow = await applySendflowMetrics(withMeta, s);
              const withInscritos = await applyInscritosMetrics(withSendflow, s);

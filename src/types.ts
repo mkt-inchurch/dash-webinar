@@ -14,6 +14,9 @@ export interface DashboardData {
   cplMeta: number;
   cplReal: number;
 
+  // Inscritos vindos de tráfego pago (UTM Source contém WEBINAR_IA), via /api/inscritos.
+  inscritosAds?: number;
+
   // Detalhamento dos ICPs (P1–P4), preenchido por /api/icps.
   icp?: { p1: number; p2: number; p3: number; p4: number };
 
@@ -29,6 +32,7 @@ export interface DiaMeta { data: string; spend: number; leads: number }
 
 export interface DashboardSeries {
   inscritos: DiaContagem[];
+  inscritosAds: DiaContagem[]; // inscritos de tráfego pago por dia
   pesquisas: DiaContagem[];
   grupo: DiaContagem[]; // entradas líquidas por dia (Sendflow, nível campanha)
   icps: DiaIcp[];
