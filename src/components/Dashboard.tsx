@@ -13,6 +13,7 @@ import {
   Search,
   Target,
   Stethoscope,
+  TrendingUp,
   TrendingDown,
   DollarSign,
   AlertCircle
@@ -39,13 +40,18 @@ export function Dashboard() {
     [rawData, series, activeRange]
   );
 
-  // Taxas de conversão recomputadas dos valores exibidos (consistentes com o filtro).
-  const taxaPesqIcp = data.pesquisas ? data.icps / data.pesquisas : 0;
-  const taxaInscGrupo = data.inscritos ? data.entradasGrupo / data.inscritos : 0;
-  const taxaGrupoPesq = data.entradasGrupo ? data.pesquisas / data.entradasGrupo : 0;
+  // Percentuais dos rodapés: Inscritos = % da meta; os demais = % sobre o total de
+  // inscritos. Recomputados dos valores exibidos (consistentes com o filtro).
+  const pctMeta = data.inscritos / META_INSCRITOS;
+  const pctGrupo = data.inscritos ? data.entradasGrupo / data.inscritos : 0;
+  const pctPesquisas = data.inscritos ? data.pesquisas / data.inscritos : 0;
+  const pctIcps = data.inscritos ? data.icps / data.inscritos : 0;
 
-  const grayFooter = (text: string) => (
-    <span className="text-xs font-mono text-gray-500">{text}</span>
+  const pctFooter = (v: number) => (
+    <span className="flex items-center gap-1 text-sm font-semibold text-in-green">
+      <TrendingUp className="w-4 h-4" />
+      {formatPercent(v)}
+    </span>
   );
 
   if (!hasLoaded) {
@@ -123,15 +129,7 @@ export function Dashboard() {
               delay={0.1}
               active={selected === 'inscritos'}
               onClick={() => setSelected('inscritos')}
-              footer={
-                filtered
-                  ? grayFooter('no período selecionado')
-                  : (
-                    <span className="text-xs font-semibold text-in-green">
-                      {formatPercent(data.inscritos / META_INSCRITOS)} da meta ({formatNumber(META_INSCRITOS)})
-                    </span>
-                  )
-              }
+              footer={pctFooter(pctMeta)}
             />
             <KPICard
               title="Entradas no Grupo"
@@ -151,11 +149,7 @@ export function Dashboard() {
               delay={0.15}
               active={selected === 'entradasGrupo'}
               onClick={() => setSelected('entradasGrupo')}
-              footer={
-                <span className="text-xs font-semibold text-in-green">
-                  {formatPercent(taxaInscGrupo)} · Inscritos → Grupo
-                </span>
-              }
+              footer={pctFooter(pctGrupo)}
             />
             <KPICard
               title="Total de Pesquisas"
@@ -164,11 +158,7 @@ export function Dashboard() {
               delay={0.2}
               active={selected === 'pesquisas'}
               onClick={() => setSelected('pesquisas')}
-              footer={
-                <span className="text-xs font-semibold text-in-green">
-                  {formatPercent(taxaGrupoPesq)} · Grupo → Pesquisa
-                </span>
-              }
+              footer={pctFooter(pctPesquisas)}
             />
             <KPICard
               title="Total de ICPs"
@@ -177,11 +167,7 @@ export function Dashboard() {
               delay={0.25}
               active={selected === 'icps'}
               onClick={() => setSelected('icps')}
-              footer={
-                <span className="text-xs font-semibold text-in-green">
-                  {formatPercent(taxaPesqIcp)} · Pesquisa → ICPs
-                </span>
-              }
+              footer={pctFooter(pctIcps)}
             />
             <KPICard
               title="Diagnósticos"
