@@ -266,6 +266,6 @@ export function useDashboardData() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  return { data, series, loading, hasLoaded, error, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
+  return { data, series, loading, hasLoaded, error, refetch: fetchData, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
 }
 

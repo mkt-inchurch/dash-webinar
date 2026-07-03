@@ -1,37 +1,82 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
-@theme {
+/* Tokens resolvem em runtime via var(--c-*), trocando com a classe .light/.dark no <html>. */
+@theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-in-green: #00E330;
-  --color-in-green-dim: rgba(0, 227, 48, 0.15);
-  
-  --color-bg-base: #050505;
-  --color-bg-card: #0F1012;
-  --color-bg-card-hover: #16181A;
-  --color-bg-card-border: #1F2225;
+  --color-in-green: var(--c-green);
+  --color-in-green-dim: var(--c-green-dim);
+
+  --color-bg-base: var(--c-bg-base);
+  --color-bg-card: var(--c-bg-card);
+  --color-bg-card-hover: var(--c-bg-card-hover);
+  --color-bg-card-border: var(--c-bg-card-border);
+
+  --color-fg: var(--c-fg);
+  --color-fg-muted: var(--c-fg-muted);
+  --color-fg-subtle: var(--c-fg-subtle);
+  --color-fg-faint: var(--c-fg-faint);
+}
+
+/* Tema escuro (padrão) */
+:root,
+html.dark {
+  --c-green: #00E330;
+  --c-green-dim: rgba(0, 227, 48, 0.15);
+  --c-bg-base: #050505;
+  --c-bg-card: #0F1012;
+  --c-bg-card-hover: #16181A;
+  --c-bg-card-border: #1F2225;
+  --c-fg: #FFFFFF;
+  --c-fg-muted: #9CA3AF;
+  --c-fg-subtle: #6B7280;
+  --c-fg-faint: #4B5563;
+  color-scheme: dark;
+}
+
+/* Tema claro (fundo branco) */
+html.light {
+  --c-green: #0AA92E;
+  --c-green-dim: rgba(10, 169, 46, 0.12);
+  --c-bg-base: #F6F7F9;
+  --c-bg-card: #FFFFFF;
+  --c-bg-card-hover: #F0F2F5;
+  --c-bg-card-border: #E4E7EB;
+  --c-fg: #0B0D0F;
+  --c-fg-muted: #52606D;
+  --c-fg-subtle: #6B7280;
+  --c-fg-faint: #9AA3AE;
+  color-scheme: light;
+}
+
+html {
+  background-color: var(--c-bg-base);
 }
 
 body {
-  background-color: var(--color-bg-base);
-  color: white;
+  background-color: var(--c-bg-base);
+  color: var(--c-fg);
   font-family: var(--font-sans);
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* Base custom scrollbar for dashboard */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent; 
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-bg-card-border); 
+  background: var(--c-bg-card-border);
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #333; 
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #333;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #C3C8CF;
 }

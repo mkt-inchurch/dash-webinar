@@ -9,16 +9,19 @@ import { CampanhasTable } from './CampanhasTable';
 import { fullRange, applyDateFilter, isFullRange, DateRange } from '../lib/dateFilter';
 import { formatCurrency, formatNumber, formatPercent, formatCompact } from '../lib/utils';
 import { META_INSCRITOS } from '../lib/constants';
+import { useTheme } from '../lib/theme';
 import {
   DollarSign, Users, Eye, Repeat, FileText, Target, TrendingDown, TrendingUp,
   Percent, BarChart3, MousePointerClick, Link2, UserPlus, UserMinus, Search,
-  Stethoscope, Megaphone, AlertCircle,
+  Stethoscope, Megaphone, AlertCircle, RefreshCw, Sun, Moon, ChevronDown, Layers,
 } from 'lucide-react';
 
-const sectionTitle = 'text-sm font-mono text-gray-500 mb-4 px-2 uppercase tracking-widest';
+const sectionTitle = 'text-sm font-mono text-fg-subtle mb-4 px-2 uppercase tracking-widest';
 
 export function Dashboard() {
-  const { data: rawData, series, loading, hasLoaded, error } = useDashboardData();
+  const { data: rawData, series, loading, hasLoaded, error, refetch } = useDashboardData();
+  const { theme, toggle } = useTheme();
+  const logoSrc = theme === 'light' ? '/logo-light.webp' : '/logo-dark.webp';
   const [range, setRange] = useState<DateRange | null>(null);
 
   const full = useMemo(() => fullRange(series), [series]);
@@ -56,7 +59,7 @@ export function Dashboard() {
       <div className="flex h-screen w-full items-center justify-center bg-bg-base">
         <div className="flex flex-col items-center space-y-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-bg-card-border border-t-in-green" />
-          <p className="text-gray-400 font-mono text-sm animate-pulse">Sincronizando dados...</p>
+          <p className="text-fg-muted font-mono text-sm animate-pulse">Sincronizando dados...</p>
         </div>
       </div>
     );
@@ -65,37 +68,61 @@ export function Dashboard() {
   return (
     <div className="min-h-screen bg-bg-base w-full pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-bg-card-border bg-black/50 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-in-green flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6 text-black" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                <rect x="3" y="14" width="7" height="7" rx="1.5" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold text-white tracking-tight">Dados Webinar IA</h1>
-              <p className="text-xs text-in-green font-mono">MÉTRICAS · META ADS</p>
-            </div>
+      <header className="sticky top-0 z-20 border-b border-bg-card-border bg-bg-base/80 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+          {/* Esquerda: logo + tag da edição */}
+          <div className="flex items-center gap-3 min-w-0">
+            <img src={logoSrc} alt="inchurch" className="h-6 w-auto shrink-0 select-none" draggable={false} />
+            <span className="h-6 w-px bg-bg-card-border hidden sm:block" />
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-in-green/10 border border-in-green/25 text-in-green px-2.5 py-1.5 text-sm font-semibold whitespace-nowrap">
+              <BarChart3 className="w-4 h-4" />
+              Webinar 04/07
+            </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
+          {/* Direita: edições · sync · tema · avatar */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {error && (
-              <div className="flex items-center space-x-2 bg-yellow-500/10 text-yellow-500 px-4 py-2 rounded-full text-sm font-medium border border-yellow-500/20">
-                <AlertCircle className="w-4 h-4" />
-                <span className="hidden xl:inline">{error}</span>
-                <span className="xl:hidden">Modo Demo</span>
-              </div>
+              <span className="hidden md:inline-flex items-center gap-1.5 bg-yellow-500/10 text-yellow-500 px-3 py-1.5 rounded-lg text-xs font-medium border border-yellow-500/20">
+                <AlertCircle className="w-3.5 h-3.5" />
+                Modo Demo
+              </span>
             )}
-            {!error && !loading && (
-              <div className="flex items-center space-x-2 bg-in-green/10 text-in-green px-4 py-2 rounded-full text-sm font-medium border border-in-green/20">
-                <div className="w-2 h-2 rounded-full bg-in-green animate-pulse"></div>
-                <span>Sincronizado</span>
-              </div>
-            )}
+
+            {/* Filtro de Edições (placeholder — em breve múltiplas edições do webinar) */}
+            <div className="relative">
+              <Layers className="w-4 h-4 text-fg-subtle absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-fg-subtle absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <select
+                aria-label="Edições"
+                defaultValue="all"
+                className="appearance-none bg-bg-card border border-bg-card-border rounded-lg pl-9 pr-8 py-2 text-sm font-medium text-fg hover:bg-bg-card-hover focus:outline-none focus:border-in-green cursor-pointer"
+              >
+                <option value="all">Edições</option>
+              </select>
+            </div>
+
+            <button
+              onClick={() => refetch?.()}
+              title="Atualizar dados"
+              aria-label="Atualizar dados"
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-bg-card-border bg-bg-card text-fg-muted hover:bg-bg-card-hover hover:text-fg transition-colors"
+            >
+              <RefreshCw className={'w-4 h-4 ' + (loading ? 'animate-spin' : '')} />
+            </button>
+
+            <button
+              onClick={toggle}
+              title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+              aria-label="Alternar tema"
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-bg-card-border bg-bg-card text-fg-muted hover:bg-bg-card-hover hover:text-fg transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            <div className="w-9 h-9 rounded-full bg-in-green flex items-center justify-center text-black text-xs font-bold select-none">
+              IN
+            </div>
           </div>
         </div>
       </header>
@@ -104,7 +131,7 @@ export function Dashboard() {
         {/* Filtro temporal */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border border-bg-card-border bg-bg-card rounded-xl px-4 py-4">
           <DateFilter range={activeRange} full={full} onChange={setRange} />
-          <span className="text-xs text-gray-500 lg:text-right lg:max-w-[240px]">
+          <span className="text-xs text-fg-subtle lg:text-right lg:max-w-[240px]">
             {isFullRange(activeRange, full)
               ? 'Todo o período do webinar (desde 19/06)'
               : 'Período selecionado · Alcance, Frequência, Diagnósticos e CPL Real não filtram por data'}
@@ -193,7 +220,7 @@ export function Dashboard() {
         {/* Tabela */}
         {data.campanhas && data.campanhas.length > 0 && <CampanhasTable campanhas={data.campanhas} />}
 
-        <p className="text-center text-xs text-gray-600 pt-4">
+        <p className="text-center text-xs text-fg-faint pt-4">
           Dados do Webinar IA · Meta Marketing API · Google Sheets · Sendflow
         </p>
       </main>

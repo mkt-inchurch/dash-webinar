@@ -3,15 +3,7 @@ import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, Responsive
 import { motion } from 'framer-motion';
 import { DashboardData, DiaContagem } from '../types';
 import { formatNumber } from '../lib/utils';
-
-const GREEN = '#00E330';
-const DIM = '#2A2F35';
-const GRID = '#1F2225';
-const AXIS = { fill: '#888', fontSize: 11 };
-const tip = {
-  contentStyle: { backgroundColor: '#0F1012', borderColor: '#1F2225', borderRadius: '8px', color: '#fff', fontSize: 12 },
-  cursor: { fill: 'rgba(255,255,255,0.03)' },
-};
+import { useTheme, chartPalette } from '../lib/theme';
 
 const ddmm = (iso: string) => {
   const [, m, d] = iso.split('-');
@@ -20,7 +12,7 @@ const ddmm = (iso: string) => {
 
 const Card: FC<{ title: string; children: ReactNode }> = ({ title, children }) => (
   <div className="border border-bg-card-border bg-bg-card rounded-2xl p-5">
-    <h3 className="text-sm font-semibold text-white mb-4">{title}</h3>
+    <h3 className="text-sm font-semibold text-fg mb-4">{title}</h3>
     <div className="w-full h-[240px]">
       <ResponsiveContainer width="100%" height="100%">{children as any}</ResponsiveContainer>
     </div>
@@ -28,6 +20,13 @@ const Card: FC<{ title: string; children: ReactNode }> = ({ title, children }) =
 );
 
 export const FunilCharts: FC<{ data: DashboardData; inscritosSerie: DiaContagem[] }> = ({ data, inscritosSerie }) => {
+  const { theme } = useTheme();
+  const p = chartPalette(theme);
+  const AXIS = { fill: p.axis, fontSize: 11 };
+  const tip = {
+    contentStyle: { backgroundColor: p.tooltipBg, borderColor: p.tooltipBorder, borderRadius: '8px', color: p.tooltipText, fontSize: 12 },
+    cursor: { fill: p.cursor },
+  };
   const inscritosRows = inscritosSerie.map((d) => ({ label: ddmm(d.data), novos: d.novos }));
   const icp = data.icp
     ? [
@@ -49,28 +48,28 @@ export const FunilCharts: FC<{ data: DashboardData; inscritosSerie: DiaContagem[
         <AreaChart data={inscritosRows} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
           <defs>
             <linearGradient id="gInscritos" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={GREEN} stopOpacity={0.35} />
-              <stop offset="95%" stopColor={GREEN} stopOpacity={0} />
+              <stop offset="5%" stopColor={p.green} stopOpacity={0.35} />
+              <stop offset="95%" stopColor={p.green} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={p.grid} vertical={false} />
           <XAxis dataKey="label" axisLine={false} tickLine={false} tick={AXIS} />
           <YAxis axisLine={false} tickLine={false} tick={AXIS} width={44} />
           <Tooltip {...tip} formatter={(v: number) => [formatNumber(v), 'Inscritos']} />
-          <Area type="monotone" dataKey="novos" stroke={GREEN} strokeWidth={2} fill="url(#gInscritos)" />
+          <Area type="monotone" dataKey="novos" stroke={p.green} strokeWidth={2} fill="url(#gInscritos)" />
         </AreaChart>
       </Card>
 
       {icp.length > 0 && (
         <Card title="Perfis de ICP (P1–P4)">
           <BarChart data={icp} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={p.grid} vertical={false} />
             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={AXIS} />
             <YAxis axisLine={false} tickLine={false} tick={AXIS} width={30} />
             <Tooltip {...tip} formatter={(v: number) => [formatNumber(v), 'Leads']} />
             <Bar dataKey="value" radius={[5, 5, 0, 0]} maxBarSize={60}>
               {icp.map((_, i) => (
-                <Cell key={i} fill={i === 0 || i === 1 ? GREEN : DIM} />
+                <Cell key={i} fill={i === 0 || i === 1 ? p.green : p.dim} />
               ))}
             </Bar>
           </BarChart>

@@ -3,9 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { motion } from 'framer-motion';
 import { Campanha } from '../types';
 import { formatCurrency, formatNumber } from '../lib/utils';
-
-const GREEN = '#00E330';
-const GRID = '#1F2225';
+import { useTheme, chartPalette } from '../lib/theme';
 
 // Nome curto: último trecho após "|" (ex.: "29_06 [2]"); trunca.
 function shortName(name: string): string {
@@ -14,11 +12,6 @@ function shortName(name: string): string {
   s = s.replace(/^29_06\s*/, '').trim() || '29_06';
   return s.length > 16 ? s.slice(0, 15) + '…' : s;
 }
-
-const tip = {
-  contentStyle: { backgroundColor: '#0F1012', borderColor: '#1F2225', borderRadius: '8px', color: '#fff', fontSize: 12 },
-  cursor: { fill: 'rgba(255,255,255,0.03)' },
-};
 
 interface BarsProps {
   title: string;
@@ -29,6 +22,12 @@ interface BarsProps {
 }
 
 const HBars: FC<BarsProps> = ({ title, campanhas, pick, format, ascending }) => {
+  const { theme } = useTheme();
+  const p = chartPalette(theme);
+  const tip = {
+    contentStyle: { backgroundColor: p.tooltipBg, borderColor: p.tooltipBorder, borderRadius: '8px', color: p.tooltipText, fontSize: 12 },
+    cursor: { fill: p.cursor },
+  };
   const data = campanhas
     .map((c) => ({ name: shortName(c.name), value: pick(c) }))
     .filter((d) => d.value > 0)
@@ -37,16 +36,16 @@ const HBars: FC<BarsProps> = ({ title, campanhas, pick, format, ascending }) => 
 
   return (
     <div className="border border-bg-card-border bg-bg-card rounded-2xl p-5">
-      <h3 className="text-sm font-semibold text-white mb-4">{title}</h3>
+      <h3 className="text-sm font-semibold text-fg mb-4">{title}</h3>
       <div className="w-full" style={{ height: Math.max(140, data.length * 34) }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-            <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#888', fontSize: 10 }} tickFormatter={format} />
-            <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#aaa', fontSize: 11 }} width={92} />
+            <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: p.axis, fontSize: 10 }} tickFormatter={format} />
+            <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: p.axisAlt, fontSize: 11 }} width={92} />
             <Tooltip {...tip} formatter={(v: number) => [format(v), title]} />
             <Bar dataKey="value" radius={[0, 5, 5, 0]} maxBarSize={22}>
               {data.map((_, i) => (
-                <Cell key={i} fill={GREEN} fillOpacity={ascending ? 0.55 + (i === 0 ? 0.45 : 0) : 1 - i * 0.08} />
+                <Cell key={i} fill={p.green} fillOpacity={ascending ? 0.55 + (i === 0 ? 0.45 : 0) : 1 - i * 0.08} />
               ))}
             </Bar>
           </BarChart>

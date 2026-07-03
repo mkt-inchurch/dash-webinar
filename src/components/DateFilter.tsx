@@ -17,8 +17,8 @@ function addDays(iso: string, n: number): string {
 const clamp = (iso: string, lo: string, hi: string) => (iso < lo ? lo : iso > hi ? hi : iso);
 
 const inputCls =
-  'bg-bg-base border border-bg-card-border rounded-lg px-3 py-1.5 text-sm text-white ' +
-  '[color-scheme:dark] focus:outline-none focus:border-in-green';
+  'bg-bg-base border border-bg-card-border rounded-lg px-3 py-1.5 text-sm text-fg ' +
+  'focus:outline-none focus:border-in-green';
 
 export const DateFilter: FC<DateFilterProps> = ({ range, full, onChange }) => {
   // Presets calculados a partir do fim do período (hoje).
@@ -47,7 +47,7 @@ export const DateFilter: FC<DateFilterProps> = ({ range, full, onChange }) => {
                 'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ' +
                 (active
                   ? 'bg-in-green text-black'
-                  : 'bg-bg-card border border-bg-card-border text-gray-300 hover:bg-bg-card-hover')
+                  : 'bg-bg-card border border-bg-card-border text-fg-muted hover:bg-bg-card-hover')
               }
             >
               {p.label}
@@ -57,8 +57,8 @@ export const DateFilter: FC<DateFilterProps> = ({ range, full, onChange }) => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-2 text-gray-400">
-          <Calendar className={'w-4 h-4 ' + (custom ? 'text-in-green' : 'text-gray-500')} />
+        <div className="flex items-center gap-2 text-fg-muted">
+          <Calendar className={'w-4 h-4 ' + (custom ? 'text-in-green' : 'text-fg-subtle')} />
           <span className="text-sm font-medium hidden sm:inline">Personalizado</span>
         </div>
         <input
@@ -69,7 +69,7 @@ export const DateFilter: FC<DateFilterProps> = ({ range, full, onChange }) => {
           onChange={(e) => onChange({ ...range, start: e.target.value })}
           className={inputCls}
         />
-        <span className="text-gray-500 text-sm">até</span>
+        <span className="text-fg-subtle text-sm">até</span>
         <input
           type="date"
           value={range.end}
