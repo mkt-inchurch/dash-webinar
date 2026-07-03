@@ -107,29 +107,9 @@ export function Dashboard() {
           </span>
         </div>
 
-        {/* KPIs — Meta Ads */}
-        <div>
-          <h2 className={sectionTitle}>Meta Ads</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <KPICard title="Gasto Total" value={formatCurrency(data.investimentoTrafego)} icon={<DollarSign className="w-5 h-5" />} delay={0.05} />
-            <KPICard title="Alcance" value={formatCompact(data.alcance ?? 0)} icon={<Users className="w-5 h-5" />} subtitle="Meta Accounts" delay={0.08} />
-            <KPICard title="Impressões" value={formatCompact(data.impressoes ?? 0)} icon={<Eye className="w-5 h-5" />} delay={0.11} />
-            <KPICard title="Frequência" value={(data.frequencia ?? 0).toFixed(2)} icon={<Repeat className="w-5 h-5" />} subtitle="média" delay={0.14} />
-            <KPICard title="LPV" value={formatCompact(data.lpv ?? 0)} icon={<FileText className="w-5 h-5" />} subtitle="landing page views" delay={0.17} />
-            <KPICard title="Conversões" value={formatNumber(data.leadsMeta)} icon={<Target className="w-5 h-5" />} subtitle="leads (Meta)" delay={0.2} />
-            <KPICard title="CPL" value={formatCurrency(data.cplMeta)} icon={<TrendingDown className="w-5 h-5" />} subtitle="custo por resultado" delay={0.23} />
-            <KPICard title="Conv. Captura" value={formatPercent(data.convPagina ?? 0)} icon={<Percent className="w-5 h-5" />} subtitle="leads / LPV" delay={0.26} />
-            <KPICard title="CTR Link" value={formatPercent(data.ctrLink ?? 0)} icon={<BarChart3 className="w-5 h-5" />} delay={0.29} />
-            <KPICard title="CPC" value={formatCurrency(data.cpc ?? 0)} icon={<MousePointerClick className="w-5 h-5" />} subtitle="por clique no link" delay={0.32} />
-            <KPICard title="CPM" value={formatCurrency(data.cpm ?? 0)} icon={<Eye className="w-5 h-5" />} delay={0.35} />
-            <KPICard title="Connect Rate" value={formatPercent(data.connectRate ?? 0)} icon={<Link2 className="w-5 h-5" />} subtitle="conv / cliques link" delay={0.38} />
-          </div>
-        </div>
-
         {/* KPIs — Funil do Webinar */}
         <div>
-          <h2 className={sectionTitle}>Funil do Webinar</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <KPICard title="Total de Inscritos" value={formatNumber(data.inscritos)} icon={<Users className="w-5 h-5" />} footer={pctFooter(pctMeta)} delay={0.05} />
             <KPICard
               title="Inscritos ADS"
@@ -164,6 +144,25 @@ export function Dashboard() {
               subtitle="investimento / inscritos ADS"
               delay={0.23}
             />
+          </div>
+        </div>
+
+        {/* KPIs — Meta Ads */}
+        <div>
+          <h2 className={sectionTitle}>Meta Ads</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KPICard title="Gasto Total" value={formatCurrency(data.investimentoTrafego)} icon={<DollarSign className="w-5 h-5" />} delay={0.05} />
+            <KPICard title="Alcance" value={formatCompact(data.alcance ?? 0)} icon={<Users className="w-5 h-5" />} subtitle="Meta Accounts" delay={0.08} />
+            <KPICard title="Impressões" value={formatCompact(data.impressoes ?? 0)} icon={<Eye className="w-5 h-5" />} delay={0.11} />
+            <KPICard title="Frequência" value={(data.frequencia ?? 0).toFixed(2)} icon={<Repeat className="w-5 h-5" />} subtitle="média" delay={0.14} />
+            <KPICard title="LPV" value={formatCompact(data.lpv ?? 0)} icon={<FileText className="w-5 h-5" />} subtitle="landing page views" delay={0.17} />
+            <KPICard title="Conversões" value={formatNumber(data.leadsMeta)} icon={<Target className="w-5 h-5" />} subtitle="leads (Meta)" delay={0.2} />
+            <KPICard title="CPL" value={formatCurrency(data.cplMeta)} icon={<TrendingDown className="w-5 h-5" />} subtitle="custo por resultado" delay={0.23} />
+            <KPICard title="Conv. Captura" value={formatPercent(data.convPagina ?? 0)} icon={<Percent className="w-5 h-5" />} subtitle="leads / LPV" delay={0.26} />
+            <KPICard title="CTR Link" value={formatPercent(data.ctrLink ?? 0)} icon={<BarChart3 className="w-5 h-5" />} delay={0.29} />
+            <KPICard title="CPC" value={formatCurrency(data.cpc ?? 0)} icon={<MousePointerClick className="w-5 h-5" />} subtitle="por clique no link" delay={0.32} />
+            <KPICard title="CPM" value={formatCurrency(data.cpm ?? 0)} icon={<Eye className="w-5 h-5" />} delay={0.35} />
+            <KPICard title="Connect Rate" value={formatPercent(data.connectRate ?? 0)} icon={<Link2 className="w-5 h-5" />} subtitle="conv / cliques link" delay={0.38} />
           </div>
         </div>
 

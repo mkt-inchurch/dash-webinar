@@ -24,7 +24,7 @@ export const KPICard: FC<KPICardProps> = ({ title, value, valueSuffix, subtitle,
       whileTap={onClick ? { scale: 0.98 } : undefined}
       onClick={onClick}
       className={cn(
-        "relative overflow-hidden rounded-2xl border p-6 flex flex-col justify-between h-full transition-all",
+        "relative overflow-hidden rounded-2xl border p-5 flex flex-col justify-between h-full min-h-[136px] transition-all",
         onClick && "cursor-pointer",
         active
           ? "border-in-green ring-2 ring-in-green/50 bg-bg-card-hover"
@@ -37,18 +37,18 @@ export const KPICard: FC<KPICardProps> = ({ title, value, valueSuffix, subtitle,
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-in-green rounded-full opacity-20 blur-3xl pointer-events-none" />
       )}
       
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-gray-400">{title}</h3>
         {icon && (
-          <div className={cn("p-2 rounded-lg", highlight ? "bg-in-green text-black" : "bg-bg-card-border text-in-green")}>
+          <div className={cn("p-1.5 rounded-lg", highlight ? "bg-in-green text-black" : "bg-bg-card-border text-in-green")}>
             {icon}
           </div>
         )}
       </div>
-      
+
       <div>
         <div className="flex items-baseline gap-2 mb-1">
-          <span className={cn("text-3xl sm:text-4xl font-bold tracking-tight", highlight ? "text-in-green" : "text-white")}>
+          <span className={cn("text-2xl font-bold tracking-tight", highlight ? "text-in-green" : "text-white")}>
             {value}
           </span>
           {valueSuffix}
