@@ -53,5 +53,10 @@ export function applyDateFilter(base: DashboardData, series: DashboardSeries, r:
     out.cplMeta = leads > 0 ? spend / leads : 0;
   }
 
+  // CPL Real = Investimento ÷ Inscritos ADS (custo por inscrito vindo de anúncio).
+  if (out.inscritosAds != null && out.inscritosAds > 0) {
+    out.cplReal = out.investimentoTrafego / out.inscritosAds;
+  }
+
   return out;
 }

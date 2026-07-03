@@ -103,7 +103,7 @@ function getChartSpec(key: string, data: DashboardData): ChartSpec {
       return {
         type: 'bar',
         title: 'CPL: Meta vs Real',
-        subtitle: 'Custo por lead planejado vs realizado',
+        subtitle: 'Meta (planejado) vs Real (Investimento ÷ Inscritos ADS)',
         format: 'currency',
         highlight: 'Real',
         data: [

@@ -204,20 +204,20 @@ export function Dashboard() {
               onClick={() => setSelected('leadsMeta')}
             />
             <KPICard
+              title="CPA / CPL (Meta)"
+              value={formatCurrency(data.cplMeta)}
+              delay={0.55}
+              active={selected === 'cplMeta'}
+              onClick={() => setSelected('cplMeta')}
+            />
+            <KPICard
               title="Inscritos ADS"
               value={formatNumber(data.inscritosAds ?? 0)}
               icon={<Megaphone className="w-5 h-5" />}
-              delay={0.55}
+              delay={0.6}
               active={selected === 'inscritosAds'}
               onClick={() => setSelected('inscritosAds')}
               footer={data.inscritosAds != null ? pctFooter(pctAds) : undefined}
-            />
-            <KPICard
-              title="CPA / CPL (Meta)"
-              value={formatCurrency(data.cplMeta)}
-              delay={0.6}
-              active={selected === 'cplMeta'}
-              onClick={() => setSelected('cplMeta')}
             />
             <KPICard
               title="CPA / CPL (Real)"
