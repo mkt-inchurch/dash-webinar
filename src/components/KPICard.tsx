@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 interface KPICardProps {
   title: string;
   value: string | number;
+  valueSuffix?: ReactNode;
   subtitle?: string;
   footer?: ReactNode;
   icon?: ReactNode;
@@ -14,7 +15,7 @@ interface KPICardProps {
   delay?: number;
 }
 
-export const KPICard: FC<KPICardProps> = ({ title, value, subtitle, footer, icon, highlight, active, onClick, delay = 0 }) => {
+export const KPICard: FC<KPICardProps> = ({ title, value, valueSuffix, subtitle, footer, icon, highlight, active, onClick, delay = 0 }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
@@ -46,8 +47,11 @@ export const KPICard: FC<KPICardProps> = ({ title, value, subtitle, footer, icon
       </div>
       
       <div>
-        <div className={cn("text-3xl sm:text-4xl font-bold tracking-tight mb-1", highlight ? "text-in-green" : "text-white")}>
-          {value}
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className={cn("text-3xl sm:text-4xl font-bold tracking-tight", highlight ? "text-in-green" : "text-white")}>
+            {value}
+          </span>
+          {valueSuffix}
         </div>
         {subtitle && (
           <p className="text-xs font-mono text-gray-500 uppercase tracking-widest">{subtitle}</p>

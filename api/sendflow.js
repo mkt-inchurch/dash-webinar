@@ -9,6 +9,7 @@
 // Token seguro no servidor (env var SENDFLOW_API_KEY).
 
 const RELEASE_ID = 'hZh6HtKTvj9jUu8ZYbml'; // Campanha: Webinar: IA na Igreja
+const GROUP_ID = 'ZUOxWMArOvbfjakb8r0L'; // Grupo: Webinar: IA na Igreja #3
 const API_BASE = 'https://sendflow.pro/sendapi';
 const CUTOFF = '2026-06-19'; // alinhado ao resto do dashboard (ignora grupos antigos)
 
@@ -58,8 +59,30 @@ export default async function handler(_req, res) {
     let entradasGrupo = 0;
     for (const d of porDia) entradasGrupo += d.novos;
 
+    // Estimativa de saídas do grupo #3 = entradas − membros atuais do #3.
+    // (A API não expõe saídas isoladas por grupo; isto é uma aproximação.)
+    let saidas;
+    try {
+      const gResp = await fetch(`${API_BASE}/releases/${RELEASE_ID}/groups`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'User-Agent': BROWSER_UA },
+      });
+      if (gResp.ok) {
+        const groups = await gResp.json();
+        const list = Array.isArray(groups) ? groups : groups.items || [];
+        const g3 = list.find((g) => g.id === GROUP_ID);
+        if (g3 && typeof g3.participantsAmount === 'number') {
+          saidas = Math.max(0, entradasGrupo - g3.participantsAmount);
+        }
+      }
+    } catch {
+      // saídas fica indefinido; o card mostra só as entradas
+    }
+
+    const payload = { entradasGrupo, porDia };
+    if (saidas != null) payload.saidas = saidas;
+
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({ entradasGrupo, porDia });
+    return res.status(200).json(payload);
   } catch (err) {
     return res.status(500).json({ error: String(err) });
   }

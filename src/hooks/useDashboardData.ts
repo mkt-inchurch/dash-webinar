@@ -131,7 +131,11 @@ async function applySendflowMetrics(base: DashboardData, series: DashboardSeries
       const sf = await res.json();
       if (sf && typeof sf.entradasGrupo === 'number') {
         if (Array.isArray(sf.porDia)) series.grupo = sf.porDia;
-        return { ...base, entradasGrupo: sf.entradasGrupo };
+        return {
+          ...base,
+          entradasGrupo: sf.entradasGrupo,
+          ...(typeof sf.saidas === 'number' ? { saidasGrupo: sf.saidas } : {}),
+        };
       }
     } catch {
       // tenta o próximo fallback

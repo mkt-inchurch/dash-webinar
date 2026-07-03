@@ -9,6 +9,7 @@ import { META_INSCRITOS } from '../lib/constants';
 import {
   Users,
   UserPlus,
+  UserMinus,
   Search,
   Target,
   Stethoscope,
@@ -135,6 +136,17 @@ export function Dashboard() {
             <KPICard
               title="Entradas no Grupo"
               value={formatNumber(data.entradasGrupo)}
+              valueSuffix={
+                data.saidasGrupo != null ? (
+                  <span
+                    className="flex items-center gap-0.5 text-sm font-semibold text-red-500"
+                    title="Saídas do grupo #3 (estimativa: entradas − membros atuais)"
+                  >
+                    <UserMinus className="w-3.5 h-3.5" />
+                    {formatNumber(data.saidasGrupo)}
+                  </span>
+                ) : undefined
+              }
               icon={<UserPlus className="w-5 h-5" />}
               delay={0.15}
               active={selected === 'entradasGrupo'}
