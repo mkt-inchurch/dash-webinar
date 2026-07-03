@@ -8,7 +8,7 @@ export interface DateRange {
 // Intervalo total disponível a partir das séries (menor..maior data).
 export function fullRange(series: DashboardSeries): DateRange {
   const dates: string[] = [];
-  for (const s of [series.inscritos, series.pesquisas, series.icps, series.meta]) {
+  for (const s of [series.inscritos, series.pesquisas, series.grupo, series.icps, series.meta]) {
     for (const d of s) dates.push(d.data);
   }
   if (!dates.length) return { start: '2026-06-19', end: '2026-06-19' };
@@ -33,6 +33,7 @@ export function applyDateFilter(base: DashboardData, series: DashboardSeries, r:
 
   if (series.inscritos.length) out.inscritos = sum(series.inscritos, (d) => d.novos);
   if (series.pesquisas.length) out.pesquisas = sum(series.pesquisas, (d) => d.novos);
+  if (series.grupo.length) out.entradasGrupo = sum(series.grupo, (d) => d.novos);
 
   if (series.icps.length) {
     const p1 = sum(series.icps, (d) => d.p1);

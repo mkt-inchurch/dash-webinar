@@ -1,14 +1,24 @@
-// Vercel Serverless Function — lê "Entradas no Grupo" ao vivo do Sendflow.
-// Token seguro no servidor (env var SENDFLOW_API_KEY), nunca vai ao navegador.
+// Vercel Serverless Function — "Entradas no Grupo" a partir do Sendflow.
+// Usa o endpoint de analytics da campanha (add/remove por dia = o que aparece no
+// painel de entradas/saídas). É NÍVEL CAMPANHA (todos os grupos) — a API não expõe
+// histórico diário isolado por grupo. Valor = entradas líquidas (add − remove) a
+// partir de 19/06, e retorna a série diária (porDia) para o filtro temporal.
+// Token seguro no servidor (env var SENDFLOW_API_KEY).
 
 const RELEASE_ID = 'hZh6HtKTvj9jUu8ZYbml'; // Campanha: Webinar: IA na Igreja
-const GROUP_ID = 'ZUOxWMArOvbfjakb8r0L'; // Grupo: Webinar: IA na Igreja #3
 const API_BASE = 'https://sendflow.pro/sendapi';
+const CUTOFF = '2026-06-19'; // alinhado ao resto do dashboard (ignora grupos antigos)
 
 // A API do Sendflow fica atrás do Cloudflare, que bloqueia clientes sem
-// User-Agent de navegador (erro 1010). Por isso enviamos um UA de browser.
+// User-Agent de navegador (erro 1010).
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
+
+// Chave "DDMMAAAA" -> "AAAA-MM-DD".
+function keyToISO(k) {
+  const m = /^(\d{2})(\d{2})(\d{4})$/.exec(String(k));
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
 
 export default async function handler(_req, res) {
   const token = process.env.SENDFLOW_API_KEY;
@@ -17,39 +27,41 @@ export default async function handler(_req, res) {
   }
 
   try {
-    const url = `${API_BASE}/releases/${RELEASE_ID}/groups`;
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-        'User-Agent': BROWSER_UA,
-      },
+    const response = await fetch(`${API_BASE}/releases/${RELEASE_ID}/analytics`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'User-Agent': BROWSER_UA },
     });
 
     if (!response.ok) {
       const text = await response.text();
-      // Cacheia o erro por alguns minutos para NÃO martelar a API do Sendflow em
-      // rajada (o rate limit dela é rígido). O front cai no /sendflow.json nesse caso.
+      // Cacheia o erro alguns minutos para não martelar a API (rate limit rígido).
       res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
       return res.status(502).json({ error: `Sendflow respondeu ${response.status}`, detail: text.slice(0, 200) });
     }
 
-    const groups = await response.json();
-    const list = Array.isArray(groups) ? groups : groups.items || [];
-    const group =
-      list.find((g) => g.id === GROUP_ID) ||
-      list.find((g) => (g.name || '').includes('#3'));
+    const data = await response.json();
+    const add = (data.add && data.add.dates) || {};
+    const remove = (data.remove && data.remove.dates) || {};
 
-    if (!group || typeof group.participantsAmount !== 'number') {
-      return res.status(404).json({ error: 'Grupo #3 não encontrado na resposta do Sendflow.' });
+    // Líquido por dia (entradas − saídas), só a partir do CUTOFF.
+    const byDay = {};
+    for (const [k, v] of Object.entries(add)) {
+      const iso = keyToISO(k);
+      if (iso && iso >= CUTOFF) byDay[iso] = (byDay[iso] || 0) + Number(v || 0);
+    }
+    for (const [k, v] of Object.entries(remove)) {
+      const iso = keyToISO(k);
+      if (iso && iso >= CUTOFF) byDay[iso] = (byDay[iso] || 0) - Number(v || 0);
     }
 
-    // Cache na borda da Vercel por 5 min (mesma cadência do resto do dashboard).
+    const porDia = Object.entries(byDay)
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([data, novos]) => ({ data, novos }));
+
+    let entradasGrupo = 0;
+    for (const d of porDia) entradasGrupo += d.novos;
+
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({
-      entradasGrupo: group.participantsAmount,
-      grupo: group.name,
-    });
+    return res.status(200).json({ entradasGrupo, porDia });
   } catch (err) {
     return res.status(500).json({ error: String(err) });
   }

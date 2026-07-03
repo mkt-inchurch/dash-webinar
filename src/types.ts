@@ -27,6 +27,7 @@ export interface DiaMeta { data: string; spend: number; leads: number }
 export interface DashboardSeries {
   inscritos: DiaContagem[];
   pesquisas: DiaContagem[];
+  grupo: DiaContagem[]; // entradas líquidas por dia (Sendflow, nível campanha)
   icps: DiaIcp[];
   meta: DiaMeta[];
 }

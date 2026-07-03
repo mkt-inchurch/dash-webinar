@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { DashboardData, DashboardSeries } from '../types';
 import Papa from 'papaparse';
 
-const EMPTY_SERIES: DashboardSeries = { inscritos: [], pesquisas: [], icps: [], meta: [] };
+const EMPTY_SERIES: DashboardSeries = { inscritos: [], pesquisas: [], grupo: [], icps: [], meta: [] };
 
 // Realistic mock data
 const MOCK_DATA: DashboardData = {
@@ -123,13 +123,14 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries): P
 // via /api/sendflow. Se a função não estiver disponível (ex.: `vite dev` sem
 // serverless, ou falta de token), cai no snapshot estático public/sendflow.json,
 // e por fim mantém o valor da planilha.
-async function applySendflowMetrics(base: DashboardData): Promise<DashboardData> {
+async function applySendflowMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
   for (const url of ['/api/sendflow', '/sendflow.json']) {
     try {
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) continue;
       const sf = await res.json();
       if (sf && typeof sf.entradasGrupo === 'number') {
+        if (Array.isArray(sf.porDia)) series.grupo = sf.porDia;
         return { ...base, entradasGrupo: sf.entradasGrupo };
       }
     } catch {
@@ -219,9 +220,9 @@ export function useDashboardData() {
         complete: async (results) => {
           if (results.data && Array.isArray(results.data)) {
              const values = extractDashboardValues(results.data as any[][]);
-             const s: DashboardSeries = { inscritos: [], pesquisas: [], icps: [], meta: [] };
+             const s: DashboardSeries = { inscritos: [], pesquisas: [], grupo: [], icps: [], meta: [] };
              const withMeta = await applyMetaMetrics(values, s);
-             const withSendflow = await applySendflowMetrics(withMeta);
+             const withSendflow = await applySendflowMetrics(withMeta, s);
              const withInscritos = await applyInscritosMetrics(withSendflow, s);
              const withPesquisas = await applyPesquisasMetrics(withInscritos, s);
              const withIcps = await applyIcpsMetrics(withPesquisas, s);

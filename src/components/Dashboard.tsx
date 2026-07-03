@@ -103,7 +103,7 @@ export function Dashboard() {
           <DateFilter range={activeRange} full={full} onChange={setRange} />
           <span className="text-xs text-gray-500">
             {filtered
-              ? 'Período selecionado · Entradas no Grupo não filtra por data'
+              ? 'Período selecionado · Diagnósticos e CPL Real não filtram por data'
               : 'Todo o período do webinar'}
           </span>
         </div>
@@ -140,13 +140,9 @@ export function Dashboard() {
               active={selected === 'entradasGrupo'}
               onClick={() => setSelected('entradasGrupo')}
               footer={
-                filtered
-                  ? grayFooter('total ao vivo · sem filtro')
-                  : (
-                    <span className="text-xs font-semibold text-in-green">
-                      {formatPercent(taxaInscGrupo)} · Inscritos → Grupo
-                    </span>
-                  )
+                <span className="text-xs font-semibold text-in-green">
+                  {formatPercent(taxaInscGrupo)} · Inscritos → Grupo
+                </span>
               }
             />
             <KPICard
@@ -157,13 +153,9 @@ export function Dashboard() {
               active={selected === 'pesquisas'}
               onClick={() => setSelected('pesquisas')}
               footer={
-                filtered
-                  ? undefined
-                  : (
-                    <span className="text-xs font-semibold text-in-green">
-                      {formatPercent(taxaGrupoPesq)} · Grupo → Pesquisa
-                    </span>
-                  )
+                <span className="text-xs font-semibold text-in-green">
+                  {formatPercent(taxaGrupoPesq)} · Grupo → Pesquisa
+                </span>
               }
             />
             <KPICard
