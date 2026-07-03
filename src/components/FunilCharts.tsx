@@ -1,7 +1,7 @@
 import { FC, ReactNode } from 'react';
-import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { motion } from 'framer-motion';
-import { DashboardData } from '../types';
+import { DashboardData, DiaContagem } from '../types';
 import { formatNumber } from '../lib/utils';
 
 const GREEN = '#00E330';
@@ -13,6 +13,11 @@ const tip = {
   cursor: { fill: 'rgba(255,255,255,0.03)' },
 };
 
+const ddmm = (iso: string) => {
+  const [, m, d] = iso.split('-');
+  return `${d}/${m}`;
+};
+
 const Card: FC<{ title: string; children: ReactNode }> = ({ title, children }) => (
   <div className="border border-bg-card-border bg-bg-card rounded-2xl p-5">
     <h3 className="text-sm font-semibold text-white mb-4">{title}</h3>
@@ -22,14 +27,8 @@ const Card: FC<{ title: string; children: ReactNode }> = ({ title, children }) =
   </div>
 );
 
-export const FunilCharts: FC<{ data: DashboardData }> = ({ data }) => {
-  const funil = [
-    { name: 'Inscritos', value: data.inscritos },
-    { name: 'Grupo', value: data.entradasGrupo },
-    { name: 'Pesquisas', value: data.pesquisas },
-    { name: 'ICPs', value: data.icps },
-    { name: 'Diagnósticos', value: data.diagnosticos },
-  ];
+export const FunilCharts: FC<{ data: DashboardData; inscritosSerie: DiaContagem[] }> = ({ data, inscritosSerie }) => {
+  const inscritosRows = inscritosSerie.map((d) => ({ label: ddmm(d.data), novos: d.novos }));
   const icp = data.icp
     ? [
         { name: 'P1', value: data.icp.p1 },
@@ -46,18 +45,20 @@ export const FunilCharts: FC<{ data: DashboardData }> = ({ data }) => {
       transition={{ duration: 0.4 }}
       className="grid grid-cols-1 lg:grid-cols-2 gap-4"
     >
-      <Card title="Funil do Webinar">
-        <BarChart data={funil} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+      <Card title="Inscritos por dia">
+        <AreaChart data={inscritosRows} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+          <defs>
+            <linearGradient id="gInscritos" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={GREEN} stopOpacity={0.35} />
+              <stop offset="95%" stopColor={GREEN} stopOpacity={0} />
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={AXIS} />
+          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={AXIS} />
           <YAxis axisLine={false} tickLine={false} tick={AXIS} width={44} />
-          <Tooltip {...tip} formatter={(v: number) => [formatNumber(v), 'Total']} />
-          <Bar dataKey="value" radius={[5, 5, 0, 0]} maxBarSize={54}>
-            {funil.map((_, i) => (
-              <Cell key={i} fill={GREEN} fillOpacity={1 - i * 0.14} />
-            ))}
-          </Bar>
-        </BarChart>
+          <Tooltip {...tip} formatter={(v: number) => [formatNumber(v), 'Inscritos']} />
+          <Area type="monotone" dataKey="novos" stroke={GREEN} strokeWidth={2} fill="url(#gInscritos)" />
+        </AreaChart>
       </Card>
 
       {icp.length > 0 && (

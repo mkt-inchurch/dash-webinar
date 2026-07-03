@@ -33,6 +33,10 @@ export function Dashboard() {
     () => series.meta.filter((d) => d.data >= activeRange.start && d.data <= activeRange.end),
     [series.meta, activeRange]
   );
+  const inscritosSerie = useMemo(
+    () => series.inscritos.filter((d) => d.data >= activeRange.start && d.data <= activeRange.end),
+    [series.inscritos, activeRange]
+  );
 
   // Percentuais dos rodapés do funil (verde).
   const pctMeta = data.inscritos / META_INSCRITOS;
@@ -175,7 +179,7 @@ export function Dashboard() {
         {/* Funil (gráficos) */}
         <div>
           <h2 className={sectionTitle}>Funil & ICPs</h2>
-          <FunilCharts data={data} />
+          <FunilCharts data={data} inscritosSerie={inscritosSerie} />
         </div>
 
         {/* Por Campanha */}
