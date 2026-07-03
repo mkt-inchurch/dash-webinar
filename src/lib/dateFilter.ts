@@ -49,15 +49,14 @@ export function applyDateFilter(base: DashboardData, series: DashboardSeries, r:
     const spend = sum(series.meta, (d) => d.spend);
     const leads = sum(series.meta, (d) => d.leads);
     const impressions = sum(series.meta, (d) => d.impressions);
-    const reach = sum(series.meta, (d) => d.reach);
     const linkClicks = sum(series.meta, (d) => d.linkClicks);
     const lpViews = sum(series.meta, (d) => d.lpViews);
     out.investimentoTrafego = spend;
     out.leadsMeta = leads;
     out.cplMeta = leads > 0 ? spend / leads : 0;
     out.impressoes = impressions;
-    out.alcance = reach;
-    out.frequencia = reach > 0 ? impressions / reach : 0;
+    // Alcance e Frequência ficam como estão (período total, vindos de base) —
+    // reach não é somável por dia.
     out.lpv = lpViews;
     out.cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
     out.cpc = linkClicks > 0 ? spend / linkClicks : 0;

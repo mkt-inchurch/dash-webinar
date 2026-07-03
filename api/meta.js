@@ -97,11 +97,18 @@ export default async function handler(_req, res) {
       .filter((c) => c.spend > 0 || c.conversoes > 0)
       .sort((a, b) => b.spend - a.spend);
 
+    // Alcance/Frequência do PERÍODO TOTAL (reach não é somável por dia). Soma o
+    // reach por campanha (aproxima; ainda conta 2x quem está em >1 campanha).
+    let totalReach = 0, totalImp = 0;
+    for (const c of campanhas) { totalReach += c.alcance; totalImp += c.impressoes; }
+
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json({
       investimentoTrafego: spend,
       leadsMeta: leads,
       cplMeta: leads > 0 ? spend / leads : 0,
+      alcance: totalReach,
+      frequencia: totalReach > 0 ? totalImp / totalReach : 0,
       porDia,
       campanhas,
     });
