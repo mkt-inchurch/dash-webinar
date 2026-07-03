@@ -111,6 +111,7 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries): P
         investimentoTrafego: meta.investimentoTrafego,
         leadsMeta: meta.leadsMeta,
         cplMeta: meta.cplMeta,
+        ...(Array.isArray(meta.campanhas) ? { campanhas: meta.campanhas } : {}),
       };
     }
     return base;

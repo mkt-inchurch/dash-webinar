@@ -22,3 +22,11 @@ export const formatPercent = (value: number) => {
     maximumFractionDigits: 1,
   }).format(value);
 };
+
+// Formato compacto: 360900 -> "360.9K", 1200 -> "1.2K".
+export const formatCompact = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+};

@@ -18,7 +18,12 @@ export interface DashboardData {
   inscritosAds?: number;
 
   // Métricas de anúncio (derivadas da série do Meta, respeitam o filtro de datas).
+  impressoes?: number;   // total de impressões no período
+  alcance?: number;      // reach (soma diária — aproximado)
+  frequencia?: number;   // impressões ÷ alcance
+  lpv?: number;          // landing page views (total)
   cpm?: number;          // custo por mil impressões (R$)
+  cpc?: number;          // custo por clique no link (R$)
   ctrLink?: number;      // cliques no link ÷ impressões (fração 0-1)
   connectRate?: number;  // page views ÷ cliques no link (fração 0-1)
   convPagina?: number;   // leads ÷ page views (fração 0-1)
@@ -28,6 +33,25 @@ export interface DashboardData {
 
   // Estimativa de saídas do grupo #3 (entradas − membros atuais), via /api/sendflow.
   saidasGrupo?: number;
+
+  // Dados por campanha (período total), via /api/meta — para "Por Campanha" e tabela.
+  campanhas?: Campanha[];
+}
+
+export interface Campanha {
+  id: string;
+  name: string;
+  spend: number;
+  impressoes: number;
+  alcance: number;
+  frequencia: number;
+  linkClicks: number;
+  lpViews: number;
+  ctrLink: number;
+  cpm: number;
+  cpc: number;
+  conversoes: number;
+  cpl: number;
 }
 
 // Séries diárias (para o filtro temporal). Cada item é o que ENTROU naquele dia
@@ -39,6 +63,7 @@ export interface DiaMeta {
   spend: number;
   leads: number;
   impressions: number;
+  reach: number;
   linkClicks: number;
   lpViews: number;
 }
