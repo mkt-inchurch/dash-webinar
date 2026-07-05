@@ -75,7 +75,7 @@ export default async function handler(_req, res) {
 
     const header = rows[0];
     const iEmail = findCol(header, [/e-?mail/]);
-    const iData = findCol(header, [/^data/, /date/, /carimbo/, /timestamp/, /hora/, /\bdia\b/]);
+    const iData = findCol(header, [/^data/, /date/, /submit/, /enviad/, /carimbo/, /timestamp/, /hora/, /\bdia\b/]);
     if (iEmail === -1) {
       return res.status(500).json({ error: `Coluna de e-mail não encontrada. Cabeçalhos: ${header.join(' | ')}` });
     }
