@@ -5,7 +5,7 @@
 // A janela (início/fim) vem da edição selecionada (?ed=...).
 // Retorna também `porDia` para o filtro de período da tela somar dentro da janela.
 
-import { getEdition } from './_editions.js';
+import { getEdition, brToTs, toBoundTs } from './_editions.js';
 
 const SHEET_ID = '1TCf4XiDVw-Rq0608W7712I5q-ZotwKzgZ7m56kmdpj0';
 // Aba: por padrão a primeira (sem parâmetro sheet). Se os dados estiverem em
@@ -50,22 +50,10 @@ function findCol(header, patterns) {
   return -1;
 }
 
-// Data em vários formatos -> ISO "AAAA-MM-DD". Aceita "DD/MM/AAAA" (com hora
-// opcional, ex.: carimbo do Google Forms) e "AAAA-MM-DD...". Retorna null se não casar.
-function toISO(raw) {
-  const s = String(raw || '').trim();
-  if (!s) return null;
-  const br = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s);
-  if (br) return `${br[3]}-${br[2].padStart(2, '0')}-${br[1].padStart(2, '0')}`;
-  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  return null;
-}
-
 export default async function handler(req, res) {
   const ed = getEdition(req);
-  const EDITION_START = ed.diagDesde;
-  const EDITION_END = ed.diagAte; // null = aberto
+  const DESDE = toBoundTs(ed.diagDesde, false);
+  const ATE = toBoundTs(ed.diagAte, true); // null = aberto
   try {
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
     if (!r.ok) {
@@ -87,10 +75,11 @@ export default async function handler(req, res) {
     for (let i = 1; i < rows.length; i++) {
       const email = String(rows[i][iEmail] || '').trim().toLowerCase();
       if (!email) continue;
-      const iso = iData === -1 ? null : toISO(rows[i][iData]);
-      // Sem coluna de data: conta na data de início da edição.
-      const day = iso || EDITION_START;
-      if (day < EDITION_START || (EDITION_END && day > EDITION_END)) continue; // fora da edição
+      const ts = iData === -1 ? null : brToTs(rows[i][iData]);
+      if (!ts) continue; // planilha de diagnósticos sempre tem "Submitted At"
+      if (DESDE && ts < DESDE) continue;
+      if (ATE && ts > ATE) continue; // fora da janela da edição
+      const day = ts.slice(0, 10);
       const cur = firstByEmail.get(email);
       if (cur === undefined || day < cur) firstByEmail.set(email, day);
     }
@@ -106,8 +95,8 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json({
       diagnosticos: total,
-      inicio: EDITION_START,
-      fim: EDITION_END,
+      inicio: ed.diagDesde,
+      fim: ed.diagAte,
       porDia,
     });
   } catch (err) {

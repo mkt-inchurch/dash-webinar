@@ -11,6 +11,7 @@ export interface Edition {
 export const EDITIONS: Edition[] = [
   { id: 'webinar-13-07', label: 'Webinar 13/07' },
   { id: 'webinar-04-07', label: 'Webinar 04/07' },
+  { id: 'webinar-15-06', label: 'Webinar 15/06' },
 ];
 
 export const DEFAULT_EDITION = 'webinar-13-07';

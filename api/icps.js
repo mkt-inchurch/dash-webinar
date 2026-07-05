@@ -6,7 +6,7 @@
 // ICP = P1 + P2 + P3 + P4 (leads qualificados). Dedup: mantém o PRIMEIRO registro
 // (>= 19/06) de cada e-mail.
 
-import { getEdition } from './_editions.js';
+import { getEdition, brToTs, toBoundTs } from './_editions.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
 const SHEET_TAB = 'Pesquisa - Webinar IA na Igreja';
@@ -35,15 +35,10 @@ function parseCSV(text) {
   return rows;
 }
 
-function toISO(v) {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(String(v || '').trim());
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
-}
-
 export default async function handler(req, res) {
   const ed = getEdition(req);
-  const CUTOFF = ed.pesquisaDesde;
-  const ATE = ed.pesquisaAte;
+  const DESDE = toBoundTs(ed.pesquisaDesde, false);
+  const ATE = toBoundTs(ed.pesquisaAte, true);
   try {
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
     if (!r.ok) return res.status(502).json({ error: `Planilha respondeu ${r.status}` });
@@ -65,9 +60,11 @@ export default async function handler(req, res) {
       const row = rows[i];
       const email = String(row[iEmail] || '').trim().toLowerCase();
       if (!email) continue;
-      const iso = toISO(row[iDate]);
-      if (!iso || iso < CUTOFF) continue;
-      if (ATE && iso > ATE) continue;
+      const ts = brToTs(row[iDate]);
+      if (!ts) continue;
+      if (DESDE && ts < DESDE) continue;
+      if (ATE && ts > ATE) continue;
+      const iso = ts.slice(0, 10);
       const cur = firstByEmail.get(email);
       if (!cur || iso < cur.iso) firstByEmail.set(email, { iso, filtro: String(row[iFiltro] || '').trim() });
     }
@@ -88,7 +85,7 @@ export default async function handler(req, res) {
       .map(([data, v]) => ({ data, ...v }));
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({ icps, ...counts, desde: CUTOFF, porDia });
+    return res.status(200).json({ icps, ...counts, desde: ed.pesquisaDesde, porDia });
   } catch (err) {
     return res.status(500).json({ error: String(err) });
   }

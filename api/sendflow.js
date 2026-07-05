@@ -32,15 +32,19 @@ export default async function handler(req, res) {
   const ed = getEdition(req);
   const RELEASE_ID = ed.sendflowRelease;
   const GROUP_ID = ed.sendflowGroup;
-  const CUTOFF = ed.sendflowDesde;
+  const DESDE = ed.sendflowDesde; // "AAAA-MM-DD" ou null (Sendflow é diário)
+  const ATE = ed.sendflowAte; // "AAAA-MM-DD" ou null
   const MODE = ed.sendflowMode; // 'group' | 'campaign'
 
-  // Soma por dia (a partir do CUTOFF) das chaves DDMMAAAA de um bloco add/remove.
+  // Soma por dia (dentro da janela da edição) das chaves DDMMAAAA de add/remove.
   const somaPorDia = (dates) => {
     const byDay = {};
     for (const [k, v] of Object.entries(dates || {})) {
       const iso = keyToISO(k);
-      if (iso && iso >= CUTOFF) byDay[iso] = (byDay[iso] || 0) + Number(v || 0);
+      if (!iso) continue;
+      if (DESDE && iso < DESDE) continue;
+      if (ATE && iso > ATE) continue;
+      byDay[iso] = (byDay[iso] || 0) + Number(v || 0);
     }
     return byDay;
   };

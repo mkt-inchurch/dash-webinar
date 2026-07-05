@@ -2,7 +2,7 @@
 // (aba Inscritos_29_06), deduplicando por e-mail. Processa no servidor para NÃO
 // expor dados pessoais (nome/telefone/e-mail) ao navegador — só contagens saem daqui.
 
-import { getEdition } from './_editions.js';
+import { getEdition, brToTs, toBoundTs } from './_editions.js';
 
 const SHEET_ID = '1QkFMFOCMMAzj3BgEoiCtTD_YHSu48p51xmu9Y3TaulM';
 const BROWSER_UA =
@@ -27,16 +27,10 @@ function parseCSV(text) {
   return rows;
 }
 
-// "DD/MM/AAAA" -> "AAAA-MM-DD" (ISO, ordenável). Retorna null se não casar.
-function toISO(br) {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(br || '').trim());
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
-}
-
 export default async function handler(req, res) {
   const ed = getEdition(req);
-  const CUTOFF = ed.inscritosDesde;
-  const ATE = ed.inscritosAte;
+  const DESDE = toBoundTs(ed.inscritosDesde, false);
+  const ATE = toBoundTs(ed.inscritosAte, true);
   const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(ed.inscritosTab)}`;
   try {
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
@@ -59,9 +53,11 @@ export default async function handler(req, res) {
       const row = rows[i];
       const email = String(row[iEmail] || '').trim().toLowerCase();
       if (!email) continue;
-      const iso = iData === -1 ? null : toISO(row[iData]);
-      if (!iso || iso < CUTOFF) continue; // antes do início da edição ou sem data
-      if (ATE && iso > ATE) continue; // depois do fim da edição
+      const ts = iData === -1 ? null : brToTs(row[iData]);
+      if (!ts) continue; // sem data
+      if (DESDE && ts < DESDE) continue; // antes do início da edição
+      if (ATE && ts > ATE) continue; // depois do fim da edição
+      const iso = ts.slice(0, 10); // dia (para o "novos por dia")
       const cur = firstByEmail.get(email);
       if (cur === undefined || iso < cur.iso) {
         firstByEmail.set(email, { iso, source: iSrc === -1 ? '' : String(row[iSrc] || '') });
@@ -97,7 +93,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       inscritos: total,
       inscritosAds: totalAds,
-      desde: CUTOFF,
+      desde: ed.inscritosDesde,
       porDia,
       porDiaAds: toPorDia(byDayAds),
     });
