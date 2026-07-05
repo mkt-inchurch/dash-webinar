@@ -99,9 +99,9 @@ const PUBLIC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ79hHc7
 // Métricas de captação vêm direto do Meta Ads (via /api/meta). Se a função não
 // estiver disponível (ex.: `vite dev` sem serverless) ou faltar token, mantém os
 // valores da planilha como fallback.
-async function applyMetaMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
+async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed: string): Promise<DashboardData> {
   try {
-    const res = await fetch('/api/meta');
+    const res = await fetch(`/api/meta?ed=${ed}`);
     if (!res.ok) return base;
     const meta = await res.json();
     if (meta && typeof meta.investimentoTrafego === 'number' && typeof meta.leadsMeta === 'number') {
@@ -126,8 +126,8 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries): P
 // via /api/sendflow. Se a função não estiver disponível (ex.: `vite dev` sem
 // serverless, ou falta de token), cai no snapshot estático public/sendflow.json,
 // e por fim mantém o valor da planilha.
-async function applySendflowMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
-  for (const url of ['/api/sendflow', '/sendflow.json']) {
+async function applySendflowMetrics(base: DashboardData, series: DashboardSeries, ed: string): Promise<DashboardData> {
+  for (const url of [`/api/sendflow?ed=${ed}`, '/sendflow.json']) {
     try {
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) continue;
@@ -150,9 +150,9 @@ async function applySendflowMetrics(base: DashboardData, series: DashboardSeries
 // "Total de Inscritos" vem da planilha Inscritos_29_06, deduplicado por e-mail
 // no servidor (/api/inscritos, que não expõe dados pessoais). Fallback: mantém o
 // valor que veio da planilha de métricas.
-async function applyInscritosMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
+async function applyInscritosMetrics(base: DashboardData, series: DashboardSeries, ed: string): Promise<DashboardData> {
   try {
-    const res = await fetch('/api/inscritos', { cache: 'no-store' });
+    const res = await fetch(`/api/inscritos?ed=${ed}`, { cache: 'no-store' });
     if (!res.ok) return base;
     const info = await res.json();
     if (info && typeof info.inscritos === 'number') {
@@ -173,9 +173,9 @@ async function applyInscritosMetrics(base: DashboardData, series: DashboardSerie
 // "Total de Pesquisas" vem da planilha de pesquisa (aba "Pesquisa - Webinar IA na
 // Igreja"), deduplicado por e-mail e só a partir de 19/06/2026 — processado no
 // servidor (/api/pesquisas). Fallback: valor da planilha de métricas.
-async function applyPesquisasMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
+async function applyPesquisasMetrics(base: DashboardData, series: DashboardSeries, ed: string): Promise<DashboardData> {
   try {
-    const res = await fetch('/api/pesquisas', { cache: 'no-store' });
+    const res = await fetch(`/api/pesquisas?ed=${ed}`, { cache: 'no-store' });
     if (!res.ok) return base;
     const info = await res.json();
     if (info && typeof info.pesquisas === 'number') {
@@ -191,9 +191,9 @@ async function applyPesquisasMetrics(base: DashboardData, series: DashboardSerie
 // "Diagnósticos" vem da planilha de diagnósticos, deduplicado por e-mail no
 // servidor (/api/diagnosticos), dentro da janela da edição (04–12/07). Guarda a
 // série por dia para o filtro de período. Fallback: valor da planilha de métricas.
-async function applyDiagnosticosMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
+async function applyDiagnosticosMetrics(base: DashboardData, series: DashboardSeries, ed: string): Promise<DashboardData> {
   try {
-    const res = await fetch('/api/diagnosticos', { cache: 'no-store' });
+    const res = await fetch(`/api/diagnosticos?ed=${ed}`, { cache: 'no-store' });
     if (!res.ok) return base;
     const info = await res.json();
     if (info && typeof info.diagnosticos === 'number') {
@@ -209,9 +209,9 @@ async function applyDiagnosticosMetrics(base: DashboardData, series: DashboardSe
 // "Total de ICPs" (P1–P4) vem da planilha de pesquisa, classificado e deduplicado
 // por e-mail no servidor (/api/icps). Sobrescreve o total e guarda o detalhamento
 // P1–P4 para o gráfico do card. Fallback: valor da planilha de métricas.
-async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
+async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries, ed: string): Promise<DashboardData> {
   try {
-    const res = await fetch('/api/icps', { cache: 'no-store' });
+    const res = await fetch(`/api/icps?ed=${ed}`, { cache: 'no-store' });
     if (!res.ok) return base;
     const info = await res.json();
     if (info && typeof info.icps === 'number') {
@@ -228,7 +228,7 @@ async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries): P
   }
 }
 
-export function useDashboardData() {
+export function useDashboardData(edition: string) {
   const [data, setData] = useState<DashboardData>(MOCK_DATA);
   const [series, setSeries] = useState<DashboardSeries>(EMPTY_SERIES);
   const [loading, setLoading] = useState(true);
@@ -236,27 +236,28 @@ export function useDashboardData() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    const ed = edition;
     try {
       setLoading(true);
-      
+
       const res = await fetch(PUBLIC_CSV_URL);
       if (!res.ok) {
         throw new Error("Erro ao buscar a planilha pública.");
       }
 
       const csvText = await res.text();
-      
+
       Papa.parse(csvText, {
         complete: async (results) => {
           if (results.data && Array.isArray(results.data)) {
              const values = extractDashboardValues(results.data as any[][]);
              const s: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
-             const withMeta = await applyMetaMetrics(values, s);
-             const withSendflow = await applySendflowMetrics(withMeta, s);
-             const withInscritos = await applyInscritosMetrics(withSendflow, s);
-             const withPesquisas = await applyPesquisasMetrics(withInscritos, s);
-             const withDiagnosticos = await applyDiagnosticosMetrics(withPesquisas, s);
-             const withIcps = await applyIcpsMetrics(withDiagnosticos, s);
+             const withMeta = await applyMetaMetrics(values, s, ed);
+             const withSendflow = await applySendflowMetrics(withMeta, s, ed);
+             const withInscritos = await applyInscritosMetrics(withSendflow, s, ed);
+             const withPesquisas = await applyPesquisasMetrics(withInscritos, s, ed);
+             const withDiagnosticos = await applyDiagnosticosMetrics(withPesquisas, s, ed);
+             const withIcps = await applyIcpsMetrics(withDiagnosticos, s, ed);
              setData(withIcps);
              setSeries(s);
              setError(null);
@@ -277,7 +278,7 @@ export function useDashboardData() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [edition]);
 
   useEffect(() => {
     fetchData();

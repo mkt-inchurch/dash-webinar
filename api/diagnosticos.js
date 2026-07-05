@@ -2,8 +2,10 @@
 // diagnósticos, deduplicando por e-mail (uma pessoa = 1). Processa no servidor
 // para NÃO expor dados pessoais ao navegador — só contagens saem daqui.
 //
-// Janela da edição atual: 04/07 a 12/07 (quando começa a próxima edição).
+// A janela (início/fim) vem da edição selecionada (?ed=...).
 // Retorna também `porDia` para o filtro de período da tela somar dentro da janela.
+
+import { getEdition } from './_editions.js';
 
 const SHEET_ID = '1TCf4XiDVw-Rq0608W7712I5q-ZotwKzgZ7m56kmdpj0';
 // Aba: por padrão a primeira (sem parâmetro sheet). Se os dados estiverem em
@@ -12,10 +14,6 @@ const SHEET_TAB = '';
 const CSV_URL =
   `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv` +
   (SHEET_TAB ? `&sheet=${encodeURIComponent(SHEET_TAB)}` : '');
-
-// Janela (inclusiva) desta edição do webinar.
-const EDITION_START = '2026-07-04';
-const EDITION_END = '2026-07-12';
 
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
@@ -64,7 +62,10 @@ function toISO(raw) {
   return null;
 }
 
-export default async function handler(_req, res) {
+export default async function handler(req, res) {
+  const ed = getEdition(req);
+  const EDITION_START = ed.diagDesde;
+  const EDITION_END = ed.diagAte; // null = aberto
   try {
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
     if (!r.ok) {
@@ -89,7 +90,7 @@ export default async function handler(_req, res) {
       const iso = iData === -1 ? null : toISO(rows[i][iData]);
       // Sem coluna de data: conta na data de início da edição.
       const day = iso || EDITION_START;
-      if (day < EDITION_START || day > EDITION_END) continue; // fora da edição
+      if (day < EDITION_START || (EDITION_END && day > EDITION_END)) continue; // fora da edição
       const cur = firstByEmail.get(email);
       if (cur === undefined || day < cur) firstByEmail.set(email, day);
     }

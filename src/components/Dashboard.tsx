@@ -10,6 +10,7 @@ import { fullRange, applyDateFilter, isFullRange, DateRange } from '../lib/dateF
 import { formatCurrency, formatNumber, formatPercent, formatCompact } from '../lib/utils';
 import { META_INSCRITOS } from '../lib/constants';
 import { useTheme } from '../lib/theme';
+import { EDITIONS, DEFAULT_EDITION, editionLabel } from '../lib/editions';
 import {
   DollarSign, Users, Eye, Repeat, FileText, Target, TrendingDown, TrendingUp,
   Percent, BarChart3, MousePointerClick, Link2, UserPlus, UserMinus, Search,
@@ -19,10 +20,23 @@ import {
 const sectionTitle = 'text-sm font-mono text-fg-subtle mb-4 px-2 uppercase tracking-widest';
 
 export function Dashboard() {
-  const { data: rawData, series, loading, hasLoaded, error, refetch } = useDashboardData();
+  const [edition, setEdition] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('dw-edition');
+      if (saved && EDITIONS.some((e) => e.id === saved)) return saved;
+    } catch { /* ignore */ }
+    return DEFAULT_EDITION;
+  });
+  const { data: rawData, series, loading, hasLoaded, error, refetch } = useDashboardData(edition);
   const { theme, toggle } = useTheme();
   const logoSrc = theme === 'light' ? '/logo-light.webp' : '/logo-dark.webp';
   const [range, setRange] = useState<DateRange | null>(null);
+
+  // Ao trocar de edição: persiste e reseta o filtro para o período total da nova edição.
+  useEffect(() => {
+    try { localStorage.setItem('dw-edition', edition); } catch { /* ignore */ }
+    setRange(null);
+  }, [edition]);
 
   const full = useMemo(() => fullRange(series), [series]);
   useEffect(() => {
@@ -76,7 +90,7 @@ export function Dashboard() {
             <span className="h-6 w-px bg-bg-card-border hidden sm:block" />
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-in-green/10 border border-in-green/25 text-in-green px-2.5 py-1.5 text-sm font-semibold whitespace-nowrap">
               <BarChart3 className="w-4 h-4" />
-              Webinar 04/07
+              {editionLabel(edition)}
             </span>
           </div>
 
@@ -89,16 +103,19 @@ export function Dashboard() {
               </span>
             )}
 
-            {/* Filtro de Edições (placeholder — em breve múltiplas edições do webinar) */}
+            {/* Seletor de edição do webinar */}
             <div className="relative">
               <Layers className="w-4 h-4 text-fg-subtle absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <ChevronDown className="w-4 h-4 text-fg-subtle absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <select
-                aria-label="Edições"
-                defaultValue="all"
+                aria-label="Edição"
+                value={edition}
+                onChange={(e) => setEdition(e.target.value)}
                 className="appearance-none bg-bg-card border border-bg-card-border rounded-lg pl-9 pr-8 py-2 text-sm font-medium text-fg hover:bg-bg-card-hover focus:outline-none focus:border-in-green cursor-pointer"
               >
-                <option value="all">Edições</option>
+                {EDITIONS.map((e) => (
+                  <option key={e.id} value={e.id}>{e.label}</option>
+                ))}
               </select>
             </div>
 

@@ -5,9 +5,9 @@
 //  - diária (time_increment=1): série por dia para KPIs filtráveis e gráficos.
 //  - por campanha (período total, com reach): tabela + gráficos "Por Campanha".
 
+import { getEdition } from './_editions.js';
+
 const AD_ACCOUNT_ID = '1511142633474747'; // InChurch 03 [Cartão de crédito]
-const CAMPAIGN_NAME_MATCH = 'WEBINAR_IA';
-const CAPTACAO_INICIO = '2026-06-19';
 const GRAPH_VERSION = 'v21.0';
 
 function actionVal(actions, type) {
@@ -16,12 +16,11 @@ function actionVal(actions, type) {
 }
 const num = (v) => parseInt(v || '0', 10) || 0;
 
-async function fetchInsights(token, daily) {
-  const until = new Date().toISOString().slice(0, 10);
+async function fetchInsights(token, daily, since, until, match) {
   const params = {
     level: 'campaign',
     fields: 'campaign_id,campaign_name,spend,impressions,reach,actions',
-    time_range: JSON.stringify({ since: CAPTACAO_INICIO, until }),
+    time_range: JSON.stringify({ since, until }),
     limit: '500',
     access_token: token,
   };
@@ -35,19 +34,24 @@ async function fetchInsights(token, daily) {
     if (Array.isArray(j.data)) all.push(...j.data);
     url = j.paging && j.paging.next ? j.paging.next : null;
   }
-  return all.filter((row) => String(row.campaign_name || '').includes(CAMPAIGN_NAME_MATCH));
+  return all.filter((row) => String(row.campaign_name || '').includes(match));
 }
 
-export default async function handler(_req, res) {
+export default async function handler(req, res) {
   const token = process.env.META_ACCESS_TOKEN;
   if (!token) {
     return res.status(500).json({ error: 'META_ACCESS_TOKEN não configurado na Vercel.' });
   }
 
+  const ed = getEdition(req);
+  const since = ed.metaDesde;
+  const until = ed.metaAte || new Date().toISOString().slice(0, 10);
+  const match = ed.metaMatch;
+
   try {
     const [dailyRows, campRows] = await Promise.all([
-      fetchInsights(token, true),
-      fetchInsights(token, false),
+      fetchInsights(token, true, since, until, match),
+      fetchInsights(token, false, since, until, match),
     ]);
 
     // ---- Série diária (KPIs filtráveis + gráficos de tendência) ----

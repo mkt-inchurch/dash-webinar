@@ -8,10 +8,9 @@
 // Retorna a série diária (porDia) para o filtro temporal.
 // Token seguro no servidor (env var SENDFLOW_API_KEY).
 
-const RELEASE_ID = 'hZh6HtKTvj9jUu8ZYbml'; // Campanha: Webinar: IA na Igreja
-const GROUP_ID = 'ZUOxWMArOvbfjakb8r0L'; // Grupo: Webinar: IA na Igreja #3
+import { getEdition } from './_editions.js';
+
 const API_BASE = 'https://sendflow.pro/sendapi';
-const CUTOFF = '2026-06-19'; // alinhado ao resto do dashboard (ignora grupos antigos)
 
 // A API do Sendflow fica atrás do Cloudflare, que bloqueia clientes sem
 // User-Agent de navegador (erro 1010).
@@ -24,11 +23,27 @@ function keyToISO(k) {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 }
 
-export default async function handler(_req, res) {
+export default async function handler(req, res) {
   const token = process.env.SENDFLOW_API_KEY;
   if (!token) {
     return res.status(500).json({ error: 'SENDFLOW_API_KEY não configurado na Vercel.' });
   }
+
+  const ed = getEdition(req);
+  const RELEASE_ID = ed.sendflowRelease;
+  const GROUP_ID = ed.sendflowGroup;
+  const CUTOFF = ed.sendflowDesde;
+  const MODE = ed.sendflowMode; // 'group' | 'campaign'
+
+  // Soma por dia (a partir do CUTOFF) das chaves DDMMAAAA de um bloco add/remove.
+  const somaPorDia = (dates) => {
+    const byDay = {};
+    for (const [k, v] of Object.entries(dates || {})) {
+      const iso = keyToISO(k);
+      if (iso && iso >= CUTOFF) byDay[iso] = (byDay[iso] || 0) + Number(v || 0);
+    }
+    return byDay;
+  };
 
   try {
     const response = await fetch(`${API_BASE}/releases/${RELEASE_ID}/analytics`, {
@@ -43,15 +58,9 @@ export default async function handler(_req, res) {
     }
 
     const data = await response.json();
-    const add = (data.add && data.add.dates) || {};
 
     // Entradas (brutas) por dia, só a partir do CUTOFF.
-    const byDay = {};
-    for (const [k, v] of Object.entries(add)) {
-      const iso = keyToISO(k);
-      if (iso && iso >= CUTOFF) byDay[iso] = (byDay[iso] || 0) + Number(v || 0);
-    }
-
+    const byDay = somaPorDia(data.add && data.add.dates);
     const porDia = Object.entries(byDay)
       .sort((a, b) => (a[0] < b[0] ? -1 : 1))
       .map(([data, novos]) => ({ data, novos }));
@@ -59,23 +68,29 @@ export default async function handler(_req, res) {
     let entradasGrupo = 0;
     for (const d of porDia) entradasGrupo += d.novos;
 
-    // Estimativa de saídas do grupo #3 = entradas − membros atuais do #3.
-    // (A API não expõe saídas isoladas por grupo; isto é uma aproximação.)
     let saidas;
-    try {
-      const gResp = await fetch(`${API_BASE}/releases/${RELEASE_ID}/groups`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'User-Agent': BROWSER_UA },
-      });
-      if (gResp.ok) {
-        const groups = await gResp.json();
-        const list = Array.isArray(groups) ? groups : groups.items || [];
-        const g3 = list.find((g) => g.id === GROUP_ID);
-        if (g3 && typeof g3.participantsAmount === 'number') {
-          saidas = Math.max(0, entradasGrupo - g3.participantsAmount);
+    if (MODE === 'campaign') {
+      // Campanha inteira: saídas = remoções reais por dia (a partir do CUTOFF).
+      const rem = somaPorDia(data.remove && data.remove.dates);
+      saidas = Object.values(rem).reduce((a, v) => a + v, 0);
+    } else {
+      // Modo grupo: estimativa de saídas do grupo #3 = entradas − membros atuais.
+      // (A API não expõe saídas isoladas por grupo; isto é uma aproximação.)
+      try {
+        const gResp = await fetch(`${API_BASE}/releases/${RELEASE_ID}/groups`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'User-Agent': BROWSER_UA },
+        });
+        if (gResp.ok) {
+          const groups = await gResp.json();
+          const list = Array.isArray(groups) ? groups : groups.items || [];
+          const g3 = GROUP_ID ? list.find((g) => g.id === GROUP_ID) : null;
+          if (g3 && typeof g3.participantsAmount === 'number') {
+            saidas = Math.max(0, entradasGrupo - g3.participantsAmount);
+          }
         }
+      } catch {
+        // saídas fica indefinido; o card mostra só as entradas
       }
-    } catch {
-      // saídas fica indefinido; o card mostra só as entradas
     }
 
     const payload = { entradasGrupo, porDia };

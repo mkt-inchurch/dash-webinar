@@ -6,13 +6,14 @@
 // ICP = P1 + P2 + P3 + P4 (leads qualificados). Dedup: mantém o PRIMEIRO registro
 // (>= 19/06) de cada e-mail.
 
+import { getEdition } from './_editions.js';
+
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
 const SHEET_TAB = 'Pesquisa - Webinar IA na Igreja';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TAB)}`;
 const COL_EMAIL = 'Qual é seu e-mail?';
 const COL_DATE = 'Submitted At';
 const COL_FILTRO = 'Filtro de Leads';
-const CUTOFF = '2026-06-19';
 const PERFIS = ['P1', 'P2', 'P3', 'P4'];
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
@@ -39,7 +40,10 @@ function toISO(v) {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 }
 
-export default async function handler(_req, res) {
+export default async function handler(req, res) {
+  const ed = getEdition(req);
+  const CUTOFF = ed.pesquisaDesde;
+  const ATE = ed.pesquisaAte;
   try {
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
     if (!r.ok) return res.status(502).json({ error: `Planilha respondeu ${r.status}` });
@@ -63,6 +67,7 @@ export default async function handler(_req, res) {
       if (!email) continue;
       const iso = toISO(row[iDate]);
       if (!iso || iso < CUTOFF) continue;
+      if (ATE && iso > ATE) continue;
       const cur = firstByEmail.get(email);
       if (!cur || iso < cur.iso) firstByEmail.set(email, { iso, filtro: String(row[iFiltro] || '').trim() });
     }

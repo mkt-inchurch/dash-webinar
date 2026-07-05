@@ -2,10 +2,9 @@
 // (aba Inscritos_29_06), deduplicando por e-mail. Processa no servidor para NÃO
 // expor dados pessoais (nome/telefone/e-mail) ao navegador — só contagens saem daqui.
 
+import { getEdition } from './_editions.js';
+
 const SHEET_ID = '1QkFMFOCMMAzj3BgEoiCtTD_YHSu48p51xmu9Y3TaulM';
-const SHEET_TAB = 'Inscritos_29_06';
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TAB)}`;
-const CUTOFF = '2026-06-19'; // considera apenas inscritos de 19/06 em diante
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
 
@@ -34,7 +33,11 @@ function toISO(br) {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 }
 
-export default async function handler(_req, res) {
+export default async function handler(req, res) {
+  const ed = getEdition(req);
+  const CUTOFF = ed.inscritosDesde;
+  const ATE = ed.inscritosAte;
+  const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(ed.inscritosTab)}`;
   try {
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
     if (!r.ok) {
@@ -57,7 +60,8 @@ export default async function handler(_req, res) {
       const email = String(row[iEmail] || '').trim().toLowerCase();
       if (!email) continue;
       const iso = iData === -1 ? null : toISO(row[iData]);
-      if (!iso || iso < CUTOFF) continue; // fora da janela (antes de 19/06 ou sem data)
+      if (!iso || iso < CUTOFF) continue; // antes do início da edição ou sem data
+      if (ATE && iso > ATE) continue; // depois do fim da edição
       const cur = firstByEmail.get(email);
       if (cur === undefined || iso < cur.iso) {
         firstByEmail.set(email, { iso, source: iSrc === -1 ? '' : String(row[iSrc] || '') });
