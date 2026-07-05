@@ -232,7 +232,21 @@ export function Dashboard() {
             <KPICard title="Impressões" value={formatCompact(data.impressoes ?? 0)} icon={<Eye className="w-5 h-5" />} delay={0.11} />
             <KPICard title="Frequência" value={(data.frequencia ?? 0).toFixed(2)} icon={<Repeat className="w-5 h-5" />} subtitle="média" delay={0.14} />
             <KPICard title="LPV" value={formatCompact(data.lpv ?? 0)} icon={<FileText className="w-5 h-5" />} subtitle="landing page views" delay={0.17} />
-            <KPICard title="Conversões" value={formatNumber(data.leadsMeta)} icon={<Target className="w-5 h-5" />} subtitle="leads (Meta)" delay={0.2} />
+            <KPICard
+              title="Conversões"
+              value={formatNumber(data.leadsMeta)}
+              valueSuffix={
+                data.inscritosAds != null ? (
+                  <span className="flex items-center gap-0.5 text-sm font-semibold text-in-green" title="Inscritos ADS — a conversão real (inscritos vindos de anúncios)">
+                    <Megaphone className="w-3.5 h-3.5" />
+                    {formatNumber(data.inscritosAds)}
+                  </span>
+                ) : undefined
+              }
+              icon={<Target className="w-5 h-5" />}
+              subtitle="Meta × real (ADS)"
+              delay={0.2}
+            />
             <KPICard title="CPL" value={formatCurrency(data.cplMeta)} icon={<TrendingDown className="w-5 h-5" />} subtitle="custo por resultado" delay={0.23} />
             <KPICard title="Conv. Captura" value={formatPercent(data.convPagina ?? 0)} icon={<Percent className="w-5 h-5" />} subtitle="leads / LPV" delay={0.26} />
             <KPICard title="CTR Link" value={formatPercent(data.ctrLink ?? 0)} icon={<BarChart3 className="w-5 h-5" />} delay={0.29} />
