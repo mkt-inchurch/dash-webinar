@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { DashboardData, DashboardSeries } from '../types';
 import Papa from 'papaparse';
 
-const EMPTY_SERIES: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], icps: [], meta: [] };
+const EMPTY_SERIES: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
 
 // Realistic mock data
 const MOCK_DATA: DashboardData = {
@@ -188,6 +188,24 @@ async function applyPesquisasMetrics(base: DashboardData, series: DashboardSerie
   }
 }
 
+// "Diagnósticos" vem da planilha de diagnósticos, deduplicado por e-mail no
+// servidor (/api/diagnosticos), dentro da janela da edição (04–12/07). Guarda a
+// série por dia para o filtro de período. Fallback: valor da planilha de métricas.
+async function applyDiagnosticosMetrics(base: DashboardData, series: DashboardSeries): Promise<DashboardData> {
+  try {
+    const res = await fetch('/api/diagnosticos', { cache: 'no-store' });
+    if (!res.ok) return base;
+    const info = await res.json();
+    if (info && typeof info.diagnosticos === 'number') {
+      if (Array.isArray(info.porDia)) series.diagnosticos = info.porDia;
+      return { ...base, diagnosticos: info.diagnosticos };
+    }
+    return base;
+  } catch {
+    return base;
+  }
+}
+
 // "Total de ICPs" (P1–P4) vem da planilha de pesquisa, classificado e deduplicado
 // por e-mail no servidor (/api/icps). Sobrescreve o total e guarda o detalhamento
 // P1–P4 para o gráfico do card. Fallback: valor da planilha de métricas.
@@ -232,12 +250,13 @@ export function useDashboardData() {
         complete: async (results) => {
           if (results.data && Array.isArray(results.data)) {
              const values = extractDashboardValues(results.data as any[][]);
-             const s: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], icps: [], meta: [] };
+             const s: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
              const withMeta = await applyMetaMetrics(values, s);
              const withSendflow = await applySendflowMetrics(withMeta, s);
              const withInscritos = await applyInscritosMetrics(withSendflow, s);
              const withPesquisas = await applyPesquisasMetrics(withInscritos, s);
-             const withIcps = await applyIcpsMetrics(withPesquisas, s);
+             const withDiagnosticos = await applyDiagnosticosMetrics(withPesquisas, s);
+             const withIcps = await applyIcpsMetrics(withDiagnosticos, s);
              setData(withIcps);
              setSeries(s);
              setError(null);

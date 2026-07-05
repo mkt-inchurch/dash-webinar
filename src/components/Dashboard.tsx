@@ -134,7 +134,7 @@ export function Dashboard() {
           <span className="text-xs text-fg-subtle lg:text-right lg:max-w-[240px]">
             {isFullRange(activeRange, full)
               ? 'Todo o período do webinar (desde 19/06)'
-              : 'Período selecionado · Alcance, Frequência, Diagnósticos e CPL Real não filtram por data'}
+              : 'Período selecionado · Alcance, Frequência e CPL Real não filtram por data'}
           </span>
         </div>
 

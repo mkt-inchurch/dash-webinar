@@ -73,6 +73,7 @@ export interface DashboardSeries {
   inscritosAds: DiaContagem[]; // inscritos de tráfego pago por dia
   pesquisas: DiaContagem[];
   grupo: DiaContagem[]; // entradas líquidas por dia (Sendflow, nível campanha)
+  diagnosticos: DiaContagem[]; // diagnósticos únicos (por e-mail) por dia
   icps: DiaIcp[];
   meta: DiaMeta[];
 }
