@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardData, DashboardSeries } from '../types';
+import { EDITIONS } from '../lib/editions';
 import Papa from 'papaparse';
 
 const EMPTY_SERIES: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
@@ -228,6 +229,25 @@ async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries, ed
   }
 }
 
+// Busca a planilha-base e roda o pipeline de UMA edição. Retorna os TOTAIS do
+// período (sem filtro de data) + a série diária. Reutilizado pelo dashboard e pela
+// tela de comparação.
+export async function loadEditionData(edition: string): Promise<{ data: DashboardData; series: DashboardSeries }> {
+  const res = await fetch(PUBLIC_CSV_URL);
+  if (!res.ok) throw new Error('Erro ao buscar a planilha pública.');
+  const csvText = await res.text();
+  const parsed = Papa.parse(csvText);
+  const values = extractDashboardValues((parsed.data as any[][]) || []);
+  const s: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
+  let d = await applyMetaMetrics(values, s, edition);
+  d = await applySendflowMetrics(d, s, edition);
+  d = await applyInscritosMetrics(d, s, edition);
+  d = await applyPesquisasMetrics(d, s, edition);
+  d = await applyDiagnosticosMetrics(d, s, edition);
+  d = await applyIcpsMetrics(d, s, edition);
+  return { data: d, series: s };
+}
+
 export function useDashboardData(edition: string) {
   const [data, setData] = useState<DashboardData>(MOCK_DATA);
   const [series, setSeries] = useState<DashboardSeries>(EMPTY_SERIES);
@@ -236,40 +256,13 @@ export function useDashboardData(edition: string) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    const ed = edition;
     try {
       setLoading(true);
-
-      const res = await fetch(PUBLIC_CSV_URL);
-      if (!res.ok) {
-        throw new Error("Erro ao buscar a planilha pública.");
-      }
-
-      const csvText = await res.text();
-
-      Papa.parse(csvText, {
-        complete: async (results) => {
-          if (results.data && Array.isArray(results.data)) {
-             const values = extractDashboardValues(results.data as any[][]);
-             const s: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
-             const withMeta = await applyMetaMetrics(values, s, ed);
-             const withSendflow = await applySendflowMetrics(withMeta, s, ed);
-             const withInscritos = await applyInscritosMetrics(withSendflow, s, ed);
-             const withPesquisas = await applyPesquisasMetrics(withInscritos, s, ed);
-             const withDiagnosticos = await applyDiagnosticosMetrics(withPesquisas, s, ed);
-             const withIcps = await applyIcpsMetrics(withDiagnosticos, s, ed);
-             setData(withIcps);
-             setSeries(s);
-             setError(null);
-             setHasLoaded(true);
-          }
-        },
-        error: (error: any) => {
-           console.error("CSV Parse error:", error);
-           setError("Erro ao interpretar os dados da planilha");
-        }
-      });
-
+      const { data, series } = await loadEditionData(edition);
+      setData(data);
+      setSeries(series);
+      setError(null);
+      setHasLoaded(true);
     } catch (err: any) {
       console.error("Failed to fetch sheet data", err);
       setError("Erro ao processar dados da planilha. Exibindo dados simulados.");
@@ -287,5 +280,32 @@ export function useDashboardData(edition: string) {
   }, [fetchData]);
 
   return { data, series, loading, hasLoaded, error, refetch: fetchData, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
+}
+
+// Carrega os totais de TODAS as edições em paralelo (para a tela de comparação).
+export function useEditionsComparison() {
+  const [rows, setRows] = useState<{ id: string; label: string; data: DashboardData }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await Promise.all(
+        EDITIONS.map(async (e) => ({ id: e.id, label: e.label, data: (await loadEditionData(e.id)).data }))
+      );
+      setRows(res);
+      setError(null);
+    } catch (err: any) {
+      console.error('Falha ao comparar edições', err);
+      setError('Erro ao carregar as edições.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { rows, loading, error, refetch: load };
 }
 

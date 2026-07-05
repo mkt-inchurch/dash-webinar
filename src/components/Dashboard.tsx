@@ -6,15 +6,16 @@ import { TrendCharts } from './TrendCharts';
 import { FunilCharts } from './FunilCharts';
 import { CampanhaBars } from './CampanhaBars';
 import { CampanhasTable } from './CampanhasTable';
+import { EditionsComparison } from './EditionsComparison';
 import { fullRange, applyDateFilter, isFullRange, DateRange } from '../lib/dateFilter';
-import { formatCurrency, formatNumber, formatPercent, formatCompact } from '../lib/utils';
+import { formatCurrency, formatNumber, formatPercent, formatCompact, cn } from '../lib/utils';
 import { META_INSCRITOS } from '../lib/constants';
 import { useTheme } from '../lib/theme';
 import { EDITIONS, DEFAULT_EDITION, editionLabel } from '../lib/editions';
 import {
   DollarSign, Users, Eye, Repeat, FileText, Target, TrendingDown, TrendingUp,
   Percent, BarChart3, MousePointerClick, Link2, UserPlus, UserMinus, Search,
-  Stethoscope, Megaphone, AlertCircle, RefreshCw, Sun, Moon, ChevronDown, Layers,
+  Stethoscope, Megaphone, AlertCircle, RefreshCw, Sun, Moon, ChevronDown, Layers, LayoutGrid, GitCompare,
 } from 'lucide-react';
 
 const sectionTitle = 'text-sm font-mono text-fg-subtle mb-4 px-2 uppercase tracking-widest';
@@ -31,6 +32,7 @@ export function Dashboard() {
   const { theme, toggle } = useTheme();
   const logoSrc = theme === 'light' ? '/logo-light.webp' : '/logo-dark.webp';
   const [range, setRange] = useState<DateRange | null>(null);
+  const [view, setView] = useState<'single' | 'compare'>('single');
 
   // Ao trocar de edição: persiste e reseta o filtro para o período total da nova edição.
   useEffect(() => {
@@ -84,14 +86,34 @@ export function Dashboard() {
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-bg-card-border bg-bg-base/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          {/* Esquerda: logo + tag da edição */}
+          {/* Esquerda: logo + tag + navegação */}
           <div className="flex items-center gap-3 min-w-0">
             <img src={logoSrc} alt="inchurch" className="h-6 w-auto shrink-0 select-none" draggable={false} />
             <span className="h-6 w-px bg-bg-card-border hidden sm:block" />
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-in-green/10 border border-in-green/25 text-in-green px-2.5 py-1.5 text-sm font-semibold whitespace-nowrap">
               <BarChart3 className="w-4 h-4" />
-              {editionLabel(edition)}
+              {view === 'compare' ? 'Todas as edições' : editionLabel(edition)}
             </span>
+
+            {/* Navegação: Painel × Comparar */}
+            <div className="inline-flex items-center rounded-lg border border-bg-card-border bg-bg-card p-0.5 ml-1">
+              <button
+                onClick={() => setView('single')}
+                title="Painel"
+                className={cn('inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  view === 'single' ? 'bg-in-green text-black' : 'text-fg-muted hover:text-fg')}
+              >
+                <LayoutGrid className="w-4 h-4" /> <span className="hidden sm:inline">Painel</span>
+              </button>
+              <button
+                onClick={() => setView('compare')}
+                title="Comparar edições"
+                className={cn('inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  view === 'compare' ? 'bg-in-green text-black' : 'text-fg-muted hover:text-fg')}
+              >
+                <GitCompare className="w-4 h-4" /> <span className="hidden sm:inline">Comparar</span>
+              </button>
+            </div>
           </div>
 
           {/* Direita: edições · sync · tema · avatar */}
@@ -103,21 +125,23 @@ export function Dashboard() {
               </span>
             )}
 
-            {/* Seletor de edição do webinar */}
-            <div className="relative">
-              <Layers className="w-4 h-4 text-fg-subtle absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <ChevronDown className="w-4 h-4 text-fg-subtle absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                aria-label="Edição"
-                value={edition}
-                onChange={(e) => setEdition(e.target.value)}
-                className="appearance-none bg-bg-card border border-bg-card-border rounded-lg pl-9 pr-8 py-2 text-sm font-medium text-fg hover:bg-bg-card-hover focus:outline-none focus:border-in-green cursor-pointer"
-              >
-                {EDITIONS.map((e) => (
-                  <option key={e.id} value={e.id}>{e.label}</option>
-                ))}
-              </select>
-            </div>
+            {/* Seletor de edição do webinar (só no Painel) */}
+            {view === 'single' && (
+              <div className="relative">
+                <Layers className="w-4 h-4 text-fg-subtle absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-fg-subtle absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <select
+                  aria-label="Edição"
+                  value={edition}
+                  onChange={(e) => setEdition(e.target.value)}
+                  className="appearance-none bg-bg-card border border-bg-card-border rounded-lg pl-9 pr-8 py-2 text-sm font-medium text-fg hover:bg-bg-card-hover focus:outline-none focus:border-in-green cursor-pointer"
+                >
+                  {EDITIONS.map((e) => (
+                    <option key={e.id} value={e.id}>{e.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <button
               onClick={() => refetch?.()}
@@ -145,6 +169,10 @@ export function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {view === 'compare' ? (
+          <EditionsComparison />
+        ) : (
+        <>
         {/* Filtro temporal */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border border-bg-card-border bg-bg-card rounded-xl px-4 py-4">
           <DateFilter range={activeRange} full={full} onChange={setRange} />
@@ -236,6 +264,8 @@ export function Dashboard() {
 
         {/* Tabela */}
         {data.campanhas && data.campanhas.length > 0 && <CampanhasTable campanhas={data.campanhas} />}
+        </>
+        )}
 
         <p className="text-center text-xs text-fg-faint pt-4">
           Dados do Webinar IA · Meta Marketing API · Google Sheets · Sendflow
