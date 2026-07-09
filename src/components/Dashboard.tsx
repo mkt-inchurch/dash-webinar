@@ -7,10 +7,13 @@ import { FunilCharts } from './FunilCharts';
 import { CampanhaBars } from './CampanhaBars';
 import { CampanhasTable } from './CampanhasTable';
 import { EditionsComparison } from './EditionsComparison';
+import { MetricChart } from './MetricChart';
+import { UtmTable } from './UtmTable';
 import { fullRange, applyDateFilter, isFullRange, DateRange } from '../lib/dateFilter';
 import { formatCurrency, formatNumber, formatPercent, formatCompact, cn } from '../lib/utils';
-import { META_INSCRITOS } from '../lib/constants';
 import { useTheme } from '../lib/theme';
+import { GOALS } from '../lib/goals';
+import { benchmark, BenchMetric } from '../lib/benchmarks';
 import { EDITIONS, DEFAULT_EDITION, editionLabel } from '../lib/editions';
 import {
   DollarSign, Users, Eye, Repeat, FileText, Target, TrendingDown, TrendingUp,
@@ -33,6 +36,7 @@ export function Dashboard() {
   const logoSrc = theme === 'light' ? '/logo-light.webp' : '/logo-dark.webp';
   const [range, setRange] = useState<DateRange | null>(null);
   const [view, setView] = useState<'single' | 'compare'>('single');
+  const [openChart, setOpenChart] = useState<string | null>(null); // card clicado → gráfico
 
   // Ao trocar de edição: persiste e reseta o filtro para o período total da nova edição.
   useEffect(() => {
@@ -57,18 +61,65 @@ export function Dashboard() {
     [series.inscritos, activeRange]
   );
 
-  // Percentuais dos rodapés do funil (verde).
-  const pctMeta = data.inscritos / META_INSCRITOS;
-  const pctGrupo = data.inscritos ? data.entradasGrupo / data.inscritos : 0;
-  const pctPesquisas = data.inscritos ? data.pesquisas / data.inscritos : 0;
-  const pctIcps = data.inscritos ? data.icps / data.inscritos : 0;
-  const pctAds = data.inscritos && data.inscritosAds != null ? data.inscritosAds / data.inscritos : 0;
-  const pctFooter = (v: number) => (
-    <span className="flex items-center gap-1 text-sm font-semibold text-in-green">
-      <TrendingUp className="w-4 h-4" />
-      {formatPercent(v)}
-    </span>
-  );
+  // Rodapé "% da meta" (metas de exemplo em lib/goals.ts). Verde se bateu a meta,
+  // vermelho se não. Cost metrics (higherBetter=false): melhor quando <= meta.
+  const goalFooter = (key: string, value: number) => {
+    const g = GOALS[key];
+    if (!g || !g.goal) return undefined;
+    const pctv = value / g.goal;
+    const ok = g.higherBetter ? value >= g.goal : value <= g.goal;
+    const Icon = ok ? TrendingUp : TrendingDown;
+    return (
+      <span className={cn('flex items-center gap-1 text-sm font-semibold', ok ? 'text-in-green' : 'text-red-500')} title="Meta de referência (exemplo)">
+        <Icon className="w-4 h-4" />
+        {formatPercent(pctv)} <span className="font-normal text-fg-subtle">da meta</span>
+      </span>
+    );
+  };
+
+  // Semáforo de benchmark de mercado (🔴🟡🟢) para as métricas de anúncio do doc
+  // de referência. Cor + rótulo curto; oculta quando não há dado (valor 0).
+  const benchFooter = (metric: BenchMetric, v?: number) => {
+    if (!v) return undefined;
+    const b = benchmark(metric, v);
+    const color = b.status === 'green' ? 'text-in-green' : b.status === 'yellow' ? 'text-yellow-500' : 'text-red-500';
+    const dot = b.status === 'green' ? 'bg-in-green' : b.status === 'yellow' ? 'bg-yellow-500' : 'bg-red-500';
+    return (
+      <span className={cn('flex items-center gap-1.5 text-xs font-semibold', color)} title="Benchmark de mercado (doc de referência)">
+        <span className={cn('w-2 h-2 rounded-full', dot)} />
+        {b.label}
+      </span>
+    );
+  };
+
+  // Props para tornar um card clicável (abre o gráfico de evolução por dia).
+  const clickProps = (key: string) => ({
+    onClick: () => setOpenChart((k) => (k === key ? null : key)),
+    active: openChart === key,
+  });
+
+  // Dados do gráfico de evolução para o card selecionado (respeita o filtro de data).
+  const ddmm = (iso: string) => { const [, m, d] = iso.split('-'); return `${d}/${m}`; };
+  const inR = (d: { data: string }) => d.data >= activeRange.start && d.data <= activeRange.end;
+  const chartFor = (key: string | null): { title: string; fmt: (v: number) => string; rows: { label: string; value: number }[] } | null => {
+    if (!key) return null;
+    const fromMeta = (pick: (d: typeof metaSerie[number]) => number) => metaSerie.map((d) => ({ label: ddmm(d.data), value: pick(d) }));
+    switch (key) {
+      case 'inscritosAds': return { title: 'Inscritos ADS', fmt: formatNumber, rows: series.inscritosAds.filter(inR).map((d) => ({ label: ddmm(d.data), value: d.novos })) };
+      case 'entradasGrupo': return { title: 'Entradas no Grupo', fmt: formatNumber, rows: series.grupo.filter(inR).map((d) => ({ label: ddmm(d.data), value: d.novos })) };
+      case 'pesquisas': return { title: 'Total de Pesquisas', fmt: formatNumber, rows: series.pesquisas.filter(inR).map((d) => ({ label: ddmm(d.data), value: d.novos })) };
+      case 'icps': return { title: 'Total de ICPs', fmt: formatNumber, rows: series.icps.filter(inR).map((d) => ({ label: ddmm(d.data), value: d.p1 + d.p2 + d.p3 + d.p4 })) };
+      case 'diagnosticos': return { title: 'Diagnósticos', fmt: formatNumber, rows: series.diagnosticos.filter(inR).map((d) => ({ label: ddmm(d.data), value: d.novos })) };
+      case 'impressoes': return { title: 'Impressões', fmt: formatCompact, rows: fromMeta((d) => d.impressions) };
+      case 'lpv': return { title: 'LPV', fmt: formatCompact, rows: fromMeta((d) => d.lpViews) };
+      case 'cpc': return { title: 'CPC', fmt: formatCurrency, rows: fromMeta((d) => (d.linkClicks > 0 ? d.spend / d.linkClicks : 0)) };
+      case 'cpm': return { title: 'CPM', fmt: formatCurrency, rows: fromMeta((d) => (d.impressions > 0 ? (d.spend / d.impressions) * 1000 : 0)) };
+      case 'convPagina': return { title: 'Conv. Captura', fmt: formatPercent, rows: fromMeta((d) => (d.lpViews > 0 ? d.leads / d.lpViews : 0)) };
+      case 'connectRate': return { title: 'Connect Rate', fmt: formatPercent, rows: fromMeta((d) => (d.linkClicks > 0 ? d.lpViews / d.linkClicks : 0)) };
+      default: return null;
+    }
+  };
+  const openedChart = chartFor(openChart);
 
   if (!hasLoaded) {
     return (
@@ -186,12 +237,13 @@ export function Dashboard() {
         {/* KPIs — Funil do Webinar */}
         <div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPICard title="Total de Inscritos" value={formatNumber(data.inscritos)} icon={<Users className="w-5 h-5" />} footer={pctFooter(pctMeta)} delay={0.05} />
+            <KPICard title="Total de Inscritos" value={formatNumber(data.inscritos)} icon={<Users className="w-5 h-5" />} footer={goalFooter('inscritos', data.inscritos)} delay={0.05} />
             <KPICard
               title="Inscritos ADS"
               value={formatNumber(data.inscritosAds ?? 0)}
               icon={<Megaphone className="w-5 h-5" />}
-              footer={data.inscritosAds != null ? pctFooter(pctAds) : undefined}
+              footer={data.inscritosAds != null ? goalFooter('inscritosAds', data.inscritosAds) : undefined}
+              {...clickProps('inscritosAds')}
               delay={0.08}
             />
             <KPICard
@@ -206,17 +258,19 @@ export function Dashboard() {
                 ) : undefined
               }
               icon={<UserPlus className="w-5 h-5" />}
-              footer={pctFooter(pctGrupo)}
+              footer={goalFooter('entradasGrupo', data.entradasGrupo)}
+              {...clickProps('entradasGrupo')}
               delay={0.11}
             />
-            <KPICard title="Total de Pesquisas" value={formatNumber(data.pesquisas)} icon={<Search className="w-5 h-5" />} footer={pctFooter(pctPesquisas)} delay={0.14} />
-            <KPICard title="Total de ICPs" value={formatNumber(data.icps)} icon={<Target className="w-5 h-5" />} footer={pctFooter(pctIcps)} delay={0.17} />
-            <KPICard title="Diagnósticos" value={formatNumber(data.diagnosticos)} icon={<Stethoscope className="w-5 h-5" />} highlight delay={0.2} />
+            <KPICard title="Total de Pesquisas" value={formatNumber(data.pesquisas)} icon={<Search className="w-5 h-5" />} footer={goalFooter('pesquisas', data.pesquisas)} {...clickProps('pesquisas')} delay={0.14} />
+            <KPICard title="Total de ICPs" value={formatNumber(data.icps)} icon={<Target className="w-5 h-5" />} footer={goalFooter('icps', data.icps)} {...clickProps('icps')} delay={0.17} />
+            <KPICard title="Diagnósticos" value={formatNumber(data.diagnosticos)} icon={<Stethoscope className="w-5 h-5" />} footer={goalFooter('diagnosticos', data.diagnosticos)} highlight {...clickProps('diagnosticos')} delay={0.2} />
             <KPICard
               title="CPA / CPL (Real)"
               value={formatCurrency(data.cplReal)}
               icon={<TrendingDown className="w-5 h-5" />}
               highlight={data.cplReal <= data.cplMeta}
+              footer={goalFooter('cplReal', data.cplReal)}
               subtitle="investimento / inscritos ADS"
               delay={0.23}
             />
@@ -228,10 +282,10 @@ export function Dashboard() {
           <h2 className={sectionTitle}>Meta Ads</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <KPICard title="Gasto Total" value={formatCurrency(data.investimentoTrafego)} icon={<DollarSign className="w-5 h-5" />} delay={0.05} />
-            <KPICard title="Alcance" value={formatCompact(data.alcance ?? 0)} icon={<Users className="w-5 h-5" />} subtitle="Meta Accounts" delay={0.08} />
-            <KPICard title="Impressões" value={formatCompact(data.impressoes ?? 0)} icon={<Eye className="w-5 h-5" />} delay={0.11} />
-            <KPICard title="Frequência" value={(data.frequencia ?? 0).toFixed(2)} icon={<Repeat className="w-5 h-5" />} subtitle="média" delay={0.14} />
-            <KPICard title="LPV" value={formatCompact(data.lpv ?? 0)} icon={<FileText className="w-5 h-5" />} subtitle="landing page views" delay={0.17} />
+            <KPICard title="Alcance" value={formatCompact(data.alcance ?? 0)} icon={<Users className="w-5 h-5" />} subtitle="Meta Accounts" footer={goalFooter('alcance', data.alcance ?? 0)} delay={0.08} />
+            <KPICard title="Impressões" value={formatCompact(data.impressoes ?? 0)} icon={<Eye className="w-5 h-5" />} footer={goalFooter('impressoes', data.impressoes ?? 0)} {...clickProps('impressoes')} delay={0.11} />
+            <KPICard title="Frequência" value={(data.frequencia ?? 0).toFixed(2)} icon={<Repeat className="w-5 h-5" />} subtitle="média" footer={benchFooter('frequencia', data.frequencia)} delay={0.14} />
+            <KPICard title="LPV" value={formatCompact(data.lpv ?? 0)} icon={<FileText className="w-5 h-5" />} subtitle="landing page views" footer={goalFooter('lpv', data.lpv ?? 0)} {...clickProps('lpv')} delay={0.17} />
             <KPICard
               title="Conversões"
               value={formatNumber(data.leadsMeta)}
@@ -245,16 +299,25 @@ export function Dashboard() {
               }
               icon={<Target className="w-5 h-5" />}
               subtitle="Meta × real (ADS)"
+              footer={goalFooter('leadsMeta', data.leadsMeta)}
               delay={0.2}
             />
-            <KPICard title="CPL" value={formatCurrency(data.cplMeta)} icon={<TrendingDown className="w-5 h-5" />} subtitle="custo por resultado" delay={0.23} />
-            <KPICard title="Conv. Captura" value={formatPercent(data.convPagina ?? 0)} icon={<Percent className="w-5 h-5" />} subtitle="leads / LPV" delay={0.26} />
-            <KPICard title="CTR Link" value={formatPercent(data.ctrLink ?? 0)} icon={<BarChart3 className="w-5 h-5" />} delay={0.29} />
-            <KPICard title="CPC" value={formatCurrency(data.cpc ?? 0)} icon={<MousePointerClick className="w-5 h-5" />} subtitle="por clique no link" delay={0.32} />
-            <KPICard title="CPM" value={formatCurrency(data.cpm ?? 0)} icon={<Eye className="w-5 h-5" />} delay={0.35} />
-            <KPICard title="Connect Rate" value={formatPercent(data.connectRate ?? 0)} icon={<Link2 className="w-5 h-5" />} subtitle="conv / cliques link" delay={0.38} />
+            <KPICard title="CPL" value={formatCurrency(data.cplMeta)} icon={<TrendingDown className="w-5 h-5" />} subtitle="custo por resultado" footer={benchFooter('cpl', data.cplMeta)} delay={0.23} />
+            <KPICard title="Conv. Captura" value={formatPercent(data.convPagina ?? 0)} icon={<Percent className="w-5 h-5" />} subtitle="leads / LPV" footer={benchFooter('convPagina', data.convPagina)} {...clickProps('convPagina')} delay={0.26} />
+            <KPICard title="CTR Link" value={formatPercent(data.ctrLink ?? 0)} icon={<BarChart3 className="w-5 h-5" />} footer={benchFooter('ctrLink', data.ctrLink)} delay={0.29} />
+            <KPICard title="CPC" value={formatCurrency(data.cpc ?? 0)} icon={<MousePointerClick className="w-5 h-5" />} subtitle="por clique no link" footer={benchFooter('cpc', data.cpc)} {...clickProps('cpc')} delay={0.32} />
+            <KPICard title="CPM" value={formatCurrency(data.cpm ?? 0)} icon={<Eye className="w-5 h-5" />} footer={benchFooter('cpm', data.cpm)} {...clickProps('cpm')} delay={0.35} />
+            <KPICard title="Connect Rate" value={formatPercent(data.connectRate ?? 0)} icon={<Link2 className="w-5 h-5" />} subtitle="conv / cliques link" footer={benchFooter('connectRate', data.connectRate)} {...clickProps('connectRate')} delay={0.38} />
           </div>
         </div>
+
+        {/* Gráfico do card clicado (evolução por dia) */}
+        {openedChart && (
+          <div>
+            <h2 className={sectionTitle}>Gráfico do card</h2>
+            <MetricChart title={openedChart.title} data={openedChart.rows} fmt={openedChart.fmt} onClose={() => setOpenChart(null)} />
+          </div>
+        )}
 
         {/* Tendência */}
         <div>
@@ -278,6 +341,12 @@ export function Dashboard() {
 
         {/* Tabela */}
         {data.campanhas && data.campanhas.length > 0 && <CampanhasTable campanhas={data.campanhas} />}
+
+        {/* UTM × Prioridade */}
+        <div>
+          <h2 className={sectionTitle}>UTMs</h2>
+          <UtmTable edition={edition} />
+        </div>
         </>
         )}
 
