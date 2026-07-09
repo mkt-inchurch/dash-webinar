@@ -13,6 +13,7 @@ import { fullRange, applyDateFilter, isFullRange, DateRange } from '../lib/dateF
 import { formatCurrency, formatNumber, formatPercent, formatCompact, cn } from '../lib/utils';
 import { useTheme } from '../lib/theme';
 import { GOALS } from '../lib/goals';
+import { META_INSCRITOS } from '../lib/constants';
 import { benchmark, BenchMetric } from '../lib/benchmarks';
 import { EDITIONS, DEFAULT_EDITION, editionLabel } from '../lib/editions';
 import {
@@ -91,6 +92,20 @@ export function Dashboard() {
       </span>
     );
   };
+
+  // Rodapé "% anterior" dos cards de funil: Inscritos = % da meta (2.000);
+  // ADS/Grupo/Pesquisas/ICPs = % sobre o total de inscritos. Ícone verde + só a %.
+  const pctMeta = data.inscritos / META_INSCRITOS;
+  const pctAds = data.inscritos && data.inscritosAds != null ? data.inscritosAds / data.inscritos : 0;
+  const pctGrupo = data.inscritos ? data.entradasGrupo / data.inscritos : 0;
+  const pctPesquisas = data.inscritos ? data.pesquisas / data.inscritos : 0;
+  const pctIcps = data.inscritos ? data.icps / data.inscritos : 0;
+  const pctFooter = (v: number) => (
+    <span className="flex items-center gap-1 text-sm font-semibold text-in-green">
+      <TrendingUp className="w-4 h-4" />
+      {formatPercent(v)}
+    </span>
+  );
 
   // Props para tornar um card clicável (abre o gráfico de evolução por dia).
   const clickProps = (key: string) => ({
@@ -237,12 +252,12 @@ export function Dashboard() {
         {/* KPIs — Funil do Webinar */}
         <div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPICard title="Total de Inscritos" value={formatNumber(data.inscritos)} icon={<Users className="w-5 h-5" />} footer={goalFooter('inscritos', data.inscritos)} delay={0.05} />
+            <KPICard title="Total de Inscritos" value={formatNumber(data.inscritos)} icon={<Users className="w-5 h-5" />} footer={pctFooter(pctMeta)} delay={0.05} />
             <KPICard
               title="Inscritos ADS"
               value={formatNumber(data.inscritosAds ?? 0)}
               icon={<Megaphone className="w-5 h-5" />}
-              footer={data.inscritosAds != null ? goalFooter('inscritosAds', data.inscritosAds) : undefined}
+              footer={data.inscritosAds != null ? pctFooter(pctAds) : undefined}
               {...clickProps('inscritosAds')}
               delay={0.08}
             />
@@ -258,19 +273,18 @@ export function Dashboard() {
                 ) : undefined
               }
               icon={<UserPlus className="w-5 h-5" />}
-              footer={goalFooter('entradasGrupo', data.entradasGrupo)}
+              footer={pctFooter(pctGrupo)}
               {...clickProps('entradasGrupo')}
               delay={0.11}
             />
-            <KPICard title="Total de Pesquisas" value={formatNumber(data.pesquisas)} icon={<Search className="w-5 h-5" />} footer={goalFooter('pesquisas', data.pesquisas)} {...clickProps('pesquisas')} delay={0.14} />
-            <KPICard title="Total de ICPs" value={formatNumber(data.icps)} icon={<Target className="w-5 h-5" />} footer={goalFooter('icps', data.icps)} {...clickProps('icps')} delay={0.17} />
-            <KPICard title="Diagnósticos" value={formatNumber(data.diagnosticos)} icon={<Stethoscope className="w-5 h-5" />} footer={goalFooter('diagnosticos', data.diagnosticos)} highlight {...clickProps('diagnosticos')} delay={0.2} />
+            <KPICard title="Total de Pesquisas" value={formatNumber(data.pesquisas)} icon={<Search className="w-5 h-5" />} footer={pctFooter(pctPesquisas)} {...clickProps('pesquisas')} delay={0.14} />
+            <KPICard title="Total de ICPs" value={formatNumber(data.icps)} icon={<Target className="w-5 h-5" />} footer={pctFooter(pctIcps)} {...clickProps('icps')} delay={0.17} />
+            <KPICard title="Diagnósticos" value={formatNumber(data.diagnosticos)} icon={<Stethoscope className="w-5 h-5" />} highlight {...clickProps('diagnosticos')} delay={0.2} />
             <KPICard
               title="CPA / CPL (Real)"
               value={formatCurrency(data.cplReal)}
               icon={<TrendingDown className="w-5 h-5" />}
               highlight={data.cplReal <= data.cplMeta}
-              footer={goalFooter('cplReal', data.cplReal)}
               subtitle="investimento / inscritos ADS"
               delay={0.23}
             />
