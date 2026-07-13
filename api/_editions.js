@@ -47,6 +47,38 @@ export const EDITIONS = {
     diagAte: '2026-07-12',
   },
 
+  // 4ª edição — OUTRO webinar: "Trilha da Integração" (Pedro Franco), 20/07.
+  // Fontes próprias: planilha de inscritos dedicada (LP webinar-integracao),
+  // campanhas Meta "WEBINAR_TRILHA", release do Sendflow próprio e a MESMA
+  // planilha de pesquisa, mas separada pela utm_campaign (não por data).
+  'webinar-20-07': {
+    id: 'webinar-20-07',
+    label: 'Webinar 20/07',
+    // Planilha de inscritos própria (diferente da do webinar IA).
+    inscritosSheet: '1q42q1ZlHGmNG0w6Fkm1lM-PazsrI8fzf78EQoPmznR0',
+    inscritosTab: '', // primeira aba
+    inscritosDesde: null,
+    inscritosAte: null,
+    // "Inscritos ADS" aqui = tráfego pago do Meta identificado por UTM Medium=paid
+    // (a UTM Source é ig/fb/an/th, não contém WEBINAR_*).
+    inscritosAdsField: 'medium',
+    inscritosAdsMatch: 'paid',
+    // Pesquisa: mesma planilha do IA, separada pela utm_campaign (não por data).
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    pesquisaUtmMatch: 'WEBINAR_TRILHA',
+    metaDesde: '2026-07-01',
+    metaAte: null,
+    metaMatch: 'WEBINAR_TRILHA',
+    sendflowRelease: 'sLZ459MRRT9Z2MBe1KV4',
+    sendflowGroup: null,
+    sendflowMode: 'campaign', // entradas = adds, saídas = removes por dia
+    sendflowDesde: '2026-07-10',
+    // O webinar é 20/07 (ainda não ocorreu): diagnósticos só a partir daí.
+    diagDesde: '2026-07-20',
+    diagAte: null,
+  },
+
   // 3ª edição — captação a partir de 04/07 (00h), webinar 13/07.
   'webinar-13-07': {
     id: 'webinar-13-07',

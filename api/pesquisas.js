@@ -47,6 +47,9 @@ export default async function handler(req, res) {
     if (iEmail === -1 || iDate === -1) {
       return res.status(500).json({ error: 'Colunas de e-mail/data não encontradas' });
     }
+    // A planilha mistura webinars; a edição pode separar pela utm_campaign.
+    const utmMatch = (ed.pesquisaUtmMatch || '').toUpperCase();
+    const iUtm = utmMatch ? header.indexOf('utm_campaign') : -1;
 
     // Dedup por e-mail, considerando só registros a partir do CUTOFF, guardando a
     // data da primeira pesquisa (>= CUTOFF) de cada pessoa.
@@ -55,6 +58,7 @@ export default async function handler(req, res) {
       const row = rows[i];
       const email = String(row[iEmail] || '').trim().toLowerCase();
       if (!email) continue;
+      if (utmMatch && !String(row[iUtm] || '').toUpperCase().includes(utmMatch)) continue;
       const ts = brToTs(row[iDate]);
       if (!ts) continue;
       if (DESDE && ts < DESDE) continue; // antes do início da edição

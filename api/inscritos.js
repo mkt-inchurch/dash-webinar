@@ -4,7 +4,7 @@
 
 import { getEdition, brToTs, toBoundTs } from './_editions.js';
 
-const SHEET_ID = '1QkFMFOCMMAzj3BgEoiCtTD_YHSu48p51xmu9Y3TaulM';
+const DEFAULT_SHEET_ID = '1QkFMFOCMMAzj3BgEoiCtTD_YHSu48p51xmu9Y3TaulM';
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
 
@@ -31,7 +31,11 @@ export default async function handler(req, res) {
   const ed = getEdition(req);
   const DESDE = toBoundTs(ed.inscritosDesde, false);
   const ATE = toBoundTs(ed.inscritosAte, true);
-  const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(ed.inscritosTab)}`;
+  const SHEET_ID = ed.inscritosSheet || DEFAULT_SHEET_ID;
+  // Aba própria da edição; se vazia, usa a primeira aba da planilha.
+  const CSV_URL =
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv` +
+    (ed.inscritosTab ? `&sheet=${encodeURIComponent(ed.inscritosTab)}` : '');
   try {
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
     if (!r.ok) {
@@ -44,7 +48,14 @@ export default async function handler(req, res) {
     const iEmail = header.indexOf('Email');
     const iData = header.indexOf('Data');
     const iSrc = header.indexOf('UTM Source');
+    const iMed = header.indexOf('UTM Medium');
     if (iEmail === -1) return res.status(500).json({ error: 'Coluna Email não encontrada' });
+
+    // Como identificar "Inscritos ADS" nesta edição. Padrão (webinar IA): a coluna
+    // UTM Source contém "WEBINAR_IA". Edição Trilha: UTM Medium == "paid".
+    const adsField = ed.inscritosAdsField || 'source'; // 'source' | 'medium'
+    const adsMatch = (ed.inscritosAdsMatch || 'WEBINAR_IA').toUpperCase();
+    const iAds = adsField === 'medium' ? iMed : iSrc;
 
     // Dedup por e-mail (só inscritos a partir do CUTOFF), guardando a data de
     // PRIMEIRA inscrição (>= CUTOFF) de cada pessoa e a UTM Source dela.
@@ -60,23 +71,23 @@ export default async function handler(req, res) {
       const iso = ts.slice(0, 10); // dia (para o "novos por dia")
       const cur = firstByEmail.get(email);
       if (cur === undefined || iso < cur.iso) {
-        firstByEmail.set(email, { iso, source: iSrc === -1 ? '' : String(row[iSrc] || '') });
+        firstByEmail.set(email, { iso, ads: iAds === -1 ? '' : String(row[iAds] || '') });
       }
     }
 
     const total = firstByEmail.size;
 
-    // Inscritos ADS = UTM Source contém "WEBINAR_IA" (veio de campanha do Meta).
-    // Exclui CONTEUDO, EMAIL, em branco e outros automaticamente.
-    const isAds = (src) => src.toUpperCase().includes('WEBINAR_IA');
+    // Inscritos ADS = veio de campanha do Meta. IA: UTM Source contém "WEBINAR_IA".
+    // Trilha: UTM Medium == "paid". Exclui conteúdo/e-mail/orgânico automaticamente.
+    const isAds = (v) => v.toUpperCase().includes(adsMatch);
 
     // Novos únicos por dia (soma = total) + acumulado, para o filtro de tempo.
     const byDay = {};
     const byDayAds = {};
     let totalAds = 0;
-    for (const { iso, source } of firstByEmail.values()) {
+    for (const { iso, ads } of firstByEmail.values()) {
       byDay[iso] = (byDay[iso] || 0) + 1;
-      if (isAds(source)) {
+      if (isAds(ads)) {
         byDayAds[iso] = (byDayAds[iso] || 0) + 1;
         totalAds++;
       }

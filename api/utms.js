@@ -56,12 +56,16 @@ export default async function handler(req, res) {
     if (iEmail === -1 || iFiltro === -1 || iDim === -1) {
       return res.status(500).json({ error: 'Colunas e-mail/Filtro de Leads/UTM não encontradas' });
     }
+    // A planilha mistura webinars; a edição pode separar pela utm_campaign.
+    const utmMatch = (ed.pesquisaUtmMatch || '').toUpperCase();
+    const iUtm = utmMatch ? header.indexOf('utm_campaign') : -1;
 
     // Dedup por e-mail (primeiro registro na janela), guardando UTM + classificação.
     const firstByEmail = new Map();
     for (let i = 1; i < rows.length; i++) {
       const email = String(rows[i][iEmail] || '').trim().toLowerCase();
       if (!email) continue;
+      if (utmMatch && !String(rows[i][iUtm] || '').toUpperCase().includes(utmMatch)) continue;
       const ts = iDate === -1 ? null : brToTs(rows[i][iDate]);
       if (!ts) continue;
       if (DESDE && ts < DESDE) continue;
