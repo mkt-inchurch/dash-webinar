@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardData, DashboardSeries } from '../types';
 import { EDITIONS } from '../lib/editions';
+import { fullRange, applyDateFilter } from '../lib/dateFilter';
 import Papa from 'papaparse';
 
 const EMPTY_SERIES: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
@@ -245,7 +246,13 @@ export async function loadEditionData(edition: string): Promise<{ data: Dashboar
   d = await applyPesquisasMetrics(d, s, edition);
   d = await applyDiagnosticosMetrics(d, s, edition);
   d = await applyIcpsMetrics(d, s, edition);
-  return { data: d, series: s };
+  // Deriva os totais do PERÍODO COMPLETO (impressões, LPV, CTR, CPC, CPM, Conv.
+  // Captura, Connect Rate, CPL Real) com a MESMA função do painel, para que a tela
+  // de Comparar mostre esses campos (que não vêm prontos da API do Meta) e fique
+  // consistente com o painel single. Com o range completo, os totais de série
+  // (inscritos, pesquisas etc.) são idênticos aos já calculados.
+  const data = s.meta.length || s.inscritos.length ? applyDateFilter(d, s, fullRange(s)) : d;
+  return { data, series: s };
 }
 
 export function useDashboardData(edition: string) {
