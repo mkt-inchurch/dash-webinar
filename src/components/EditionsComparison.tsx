@@ -36,9 +36,7 @@ const SECTIONS: { title: string; metrics: Metric[] }[] = [
     title: 'Meta Ads',
     metrics: [
       { key: 'spend', label: 'Gasto Total', get: (d) => d.investimentoTrafego ?? 0, fmt: formatCurrency, better: 'none' },
-      { key: 'leads', label: 'Conversões (Meta)', get: (d) => d.leadsMeta ?? 0, fmt: formatNumber, better: 'higher' },
       { key: 'convReal', label: 'Conversão real (ADS ÷ Meta)', get: (d) => { const m = d.leadsMeta ?? 0; return m > 0 ? (d.inscritosAds ?? 0) / m : 0; }, fmt: pct, better: 'higher' },
-      { key: 'cplMeta', label: 'CPL (Meta)', get: (d) => d.cplMeta ?? 0, fmt: formatCurrency, better: 'lower' },
       { key: 'alcance', label: 'Alcance', get: (d) => d.alcance ?? 0, fmt: formatCompact, better: 'higher' },
       { key: 'impressoes', label: 'Impressões', get: (d) => d.impressoes ?? 0, fmt: formatCompact, better: 'higher' },
       { key: 'frequencia', label: 'Frequência', get: (d) => d.frequencia ?? 0, fmt: freq, better: 'none' },

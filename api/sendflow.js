@@ -23,10 +23,33 @@ function keyToISO(k) {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 }
 
+// Lê as chaves do Sendflow das env vars, na ordem de tentativa. Aceita várias para
+// rotação quando uma é bloqueada por rate limit (403 api-key-blocked): as nomeadas
+// SENDFLOW_API_KEY, SENDFLOW_API_KEY_2, _3, _4, e/ou uma lista separada por vírgula
+// em SENDFLOW_API_KEYS. Duplicatas e vazios são descartados.
+function getKeys() {
+  const raw = [
+    process.env.SENDFLOW_API_KEY,
+    process.env.SENDFLOW_API_KEY_2,
+    process.env.SENDFLOW_API_KEY_3,
+    process.env.SENDFLOW_API_KEY_4,
+    ...String(process.env.SENDFLOW_API_KEYS || '').split(','),
+  ];
+  const seen = new Set();
+  const keys = [];
+  for (const k of raw) {
+    const t = String(k || '').trim();
+    if (t && !seen.has(t)) { seen.add(t); keys.push(t); }
+  }
+  return keys;
+}
+
+const sfHeaders = (token) => ({ Authorization: `Bearer ${token}`, Accept: 'application/json', 'User-Agent': BROWSER_UA });
+
 export default async function handler(req, res) {
-  const token = process.env.SENDFLOW_API_KEY;
-  if (!token) {
-    return res.status(500).json({ error: 'SENDFLOW_API_KEY não configurado na Vercel.' });
+  const keys = getKeys();
+  if (!keys.length) {
+    return res.status(500).json({ error: 'Nenhuma chave do Sendflow configurada na Vercel (SENDFLOW_API_KEY / _2 / _3).' });
   }
 
   const ed = getEdition(req);
@@ -50,18 +73,23 @@ export default async function handler(req, res) {
   };
 
   try {
-    const response = await fetch(`${API_BASE}/releases/${RELEASE_ID}/analytics`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'User-Agent': BROWSER_UA },
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      // Cacheia o erro alguns minutos para não martelar a API (rate limit rígido).
-      res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
-      return res.status(502).json({ error: `Sendflow respondeu ${response.status}`, detail: text.slice(0, 200) });
+    // Tenta cada chave em ordem até uma responder OK; pula as bloqueadas por rate
+    // limit (403) ou com erro. Guarda a chave que funcionou p/ reusar no fetch de
+    // grupos.
+    let data = null, token = null, lastStatus = 0, lastDetail = '';
+    for (const k of keys) {
+      const response = await fetch(`${API_BASE}/releases/${RELEASE_ID}/analytics`, { headers: sfHeaders(k) });
+      if (response.ok) { data = await response.json(); token = k; break; }
+      lastStatus = response.status;
+      lastDetail = (await response.text()).slice(0, 200);
     }
 
-    const data = await response.json();
+    if (!data) {
+      // Todas as chaves falharam (provável rate limit em todas). Cacheia o erro
+      // alguns minutos para não martelar a API.
+      res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
+      return res.status(502).json({ error: `Sendflow respondeu ${lastStatus} em todas as ${keys.length} chave(s)`, detail: lastDetail });
+    }
 
     // Entradas (brutas) por dia, só a partir do CUTOFF.
     const byDay = somaPorDia(data.add && data.add.dates);
@@ -81,9 +109,7 @@ export default async function handler(req, res) {
       // Modo grupo: estimativa de saídas do grupo #3 = entradas − membros atuais.
       // (A API não expõe saídas isoladas por grupo; isto é uma aproximação.)
       try {
-        const gResp = await fetch(`${API_BASE}/releases/${RELEASE_ID}/groups`, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'User-Agent': BROWSER_UA },
-        });
+        const gResp = await fetch(`${API_BASE}/releases/${RELEASE_ID}/groups`, { headers: sfHeaders(token) });
         if (gResp.ok) {
           const groups = await gResp.json();
           const list = Array.isArray(groups) ? groups : groups.items || [];

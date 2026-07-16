@@ -330,23 +330,6 @@ export function Dashboard() {
             <KPICard title="Impressões" value={formatCompact(data.impressoes ?? 0)} icon={<Eye className="w-5 h-5" />} footer={goalFooter('impressoes', data.impressoes ?? 0)} {...clickProps('impressoes')} delay={0.11} />
             <KPICard title="Frequência" value={(data.frequencia ?? 0).toFixed(2)} icon={<Repeat className="w-5 h-5" />} subtitle="média" footer={benchFooter('frequencia', data.frequencia)} delay={0.14} />
             <KPICard title="LPV" value={formatCompact(data.lpv ?? 0)} icon={<FileText className="w-5 h-5" />} subtitle="landing page views" footer={goalFooter('lpv', data.lpv ?? 0)} {...clickProps('lpv')} delay={0.17} />
-            <KPICard
-              title="Conversões"
-              value={formatNumber(data.leadsMeta)}
-              valueSuffix={
-                data.inscritosAds != null ? (
-                  <span className="flex items-center gap-0.5 text-sm font-semibold text-in-green" title="Inscritos ADS — a conversão real (inscritos vindos de anúncios)">
-                    <Megaphone className="w-3.5 h-3.5" />
-                    {formatNumber(data.inscritosAds)}
-                  </span>
-                ) : undefined
-              }
-              icon={<Target className="w-5 h-5" />}
-              subtitle="Meta × real (ADS)"
-              footer={goalFooter('leadsMeta', data.leadsMeta)}
-              delay={0.2}
-            />
-            <KPICard title="CPL" value={formatCurrency(data.cplMeta)} icon={<TrendingDown className="w-5 h-5" />} subtitle="custo por resultado" footer={benchFooter('cpl', data.cplMeta)} delay={0.23} />
             <KPICard title="Conv. Captura" value={formatPercent(data.convPagina ?? 0)} icon={<Percent className="w-5 h-5" />} subtitle="leads / LPV" footer={benchFooter('convPagina', data.convPagina)} {...clickProps('convPagina')} delay={0.26} />
             <KPICard title="CTR Link" value={formatPercent(data.ctrLink ?? 0)} icon={<BarChart3 className="w-5 h-5" />} footer={benchFooter('ctrLink', data.ctrLink)} delay={0.29} />
             <KPICard title="CPC" value={formatCurrency(data.cpc ?? 0)} icon={<MousePointerClick className="w-5 h-5" />} subtitle="por clique no link" footer={benchFooter('cpc', data.cpc)} {...clickProps('cpc')} delay={0.32} />
