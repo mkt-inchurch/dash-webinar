@@ -24,6 +24,16 @@ import {
 
 const sectionTitle = 'text-sm font-mono text-fg-subtle mb-4 px-2 uppercase tracking-widest';
 
+// Rótulos amigáveis das fontes de dados (para o aviso de indisponibilidade).
+const SOURCE_LABELS: Record<string, string> = {
+  meta: 'Meta Ads',
+  sendflow: 'Entradas no Grupo (Sendflow)',
+  inscritos: 'Inscritos (planilha)',
+  pesquisas: 'Pesquisas (planilha)',
+  icps: 'ICPs (planilha)',
+  diagnosticos: 'Diagnósticos (planilha)',
+};
+
 export function Dashboard() {
   const [edition, setEdition] = useState<string>(() => {
     try {
@@ -32,7 +42,7 @@ export function Dashboard() {
     } catch { /* ignore */ }
     return DEFAULT_EDITION;
   });
-  const { data: rawData, series, loading, hasLoaded, error, refetch } = useDashboardData(edition);
+  const { data: rawData, series, loading, hasLoaded, error, unavailable, refetch } = useDashboardData(edition);
   const { theme, toggle } = useTheme();
   const logoSrc = theme === 'light' ? '/logo-light.webp' : '/logo-dark.webp';
   const [range, setRange] = useState<DateRange | null>(null);
@@ -253,6 +263,21 @@ export function Dashboard() {
               : 'Período selecionado · Alcance, Frequência e CPL Real não filtram por data'}
           </span>
         </div>
+
+        {/* Aviso: fonte(s) de dados indisponível(is) para esta edição. Os cards
+            afetados ficam zerados (NÃO herdam número de outro webinar). */}
+        {unavailable.length > 0 && (
+          <div className="flex items-start gap-2 border border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-xl px-4 py-3 text-sm">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold">Fonte de dados indisponível: </span>
+              {unavailable.map((u) => SOURCE_LABELS[u] ?? u).join(', ')}.
+              <span className="block text-xs opacity-80 mt-0.5">
+                Os cards dessas fontes estão zerados até a conexão voltar (não exibem dados de outra edição). Verifique se a planilha/API está acessível.
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* KPIs — Funil do Webinar */}
         <div>
