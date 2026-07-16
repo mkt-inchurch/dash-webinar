@@ -9,8 +9,9 @@
 import { getEdition, brToTs, toBoundTs } from './_editions.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
-const SHEET_TAB = 'Pesquisa - Webinar IA na Igreja';
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TAB)}`;
+// Aba única "Pesquisa Geral" via /export (imune a filtros; o gviz respeita filtros
+// e devolvia só as linhas visíveis). Separação por edição = data + utm_campaign.
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 const COL_EMAIL = 'Qual é seu e-mail?';
 const COL_DATE = 'Submitted At';
 const COL_FILTRO = 'Filtro de Leads';
@@ -52,9 +53,10 @@ export default async function handler(req, res) {
     if (iEmail === -1 || iDate === -1 || iFiltro === -1) {
       return res.status(500).json({ error: 'Colunas e-mail/data/Filtro de Leads não encontradas' });
     }
-    // A planilha mistura webinars; a edição pode separar pela utm_campaign.
+    // A planilha mistura webinars; a edição separa pela utm_campaign (match/exclude).
     const utmMatch = (ed.pesquisaUtmMatch || '').toUpperCase();
-    const iUtm = utmMatch ? header.indexOf('utm_campaign') : -1;
+    const utmExclude = (ed.pesquisaUtmExclude || '').toUpperCase();
+    const iUtm = (utmMatch || utmExclude) ? header.indexOf('utm_campaign') : -1;
 
     // Dedup por e-mail: mantém o PRIMEIRO registro (>= CUTOFF) de cada pessoa e usa
     // a classificação "Filtro de Leads" dele.
@@ -63,7 +65,9 @@ export default async function handler(req, res) {
       const row = rows[i];
       const email = String(row[iEmail] || '').trim().toLowerCase();
       if (!email) continue;
-      if (utmMatch && !String(row[iUtm] || '').toUpperCase().includes(utmMatch)) continue;
+      const utmVal = iUtm === -1 ? '' : String(row[iUtm] || '').toUpperCase();
+      if (utmMatch && !utmVal.includes(utmMatch)) continue;
+      if (utmExclude && utmVal.includes(utmExclude)) continue;
       const ts = brToTs(row[iDate]);
       if (!ts) continue;
       if (DESDE && ts < DESDE) continue;
