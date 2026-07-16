@@ -88,9 +88,9 @@ export const EDITIONS = {
     inscritosAte: null,
     pesquisaDesde: '2026-07-04',
     pesquisaAte: null,
-    // A aba "Pesquisa Geral" mistura webinars; a janela do 13/07 é aberta (>=04/07),
-    // então exclui explicitamente as respostas da Trilha (webinar 20/07).
-    pesquisaUtmExclude: 'WEBINAR_TRILHA',
+    // A aba "Pesquisa Geral" mistura webinars; o 13/07 é separado pela sua própria
+    // utm_campaign (respostas vindas da campanha do webinar 13/07).
+    pesquisaUtmMatch: 'WEBINAR_IA_13_JUL',
     metaDesde: '2026-07-04',
     metaAte: null,
     metaMatch: 'WEBINAR_IA',
