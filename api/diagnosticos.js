@@ -8,12 +8,10 @@
 import { getEdition, brToTs, toBoundTs } from './_editions.js';
 
 const SHEET_ID = '1TCf4XiDVw-Rq0608W7712I5q-ZotwKzgZ7m56kmdpj0';
-// Aba: por padrão a primeira (sem parâmetro sheet). Se os dados estiverem em
-// outra aba, defina o nome aqui.
-const SHEET_TAB = '';
-const CSV_URL =
-  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv` +
-  (SHEET_TAB ? `&sheet=${encodeURIComponent(SHEET_TAB)}` : '');
+// 1ª aba via /export (não gviz): o gviz respeita filtros aplicados na planilha e
+// pode devolver só as linhas visíveis (foi o que quebrou a pesquisa). O /export
+// devolve a aba inteira, imune a filtros. Separação por edição = janela de data.
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
