@@ -124,12 +124,13 @@ export const EDITIONS = {
     pesquisaDesde: null,
     pesquisaAte: null,
     pesquisaUtmMatch: 'WEBINAR_IA_27',
-    // A campanha do Meta ainda não começou; será nomeada com WEBINAR_IA + a data.
-    // Corte em 14/07 (dia após o webinar 13/07): o gasto WEBINAR_IA a partir daí é
-    // captação do 27/07 (as campanhas WEBINAR_IA são reusadas entre edições).
+    // Campanha própria do 27/07: "…| WEBINAR_IA_04 | 27.07" (id 120248071509010003).
+    // O termo WEBINAR_IA_04 é único desta edição (as antigas são WEBINAR_IA_02),
+    // então isola o gasto sem depender de data. Mantém metaDesde 14/07 como piso
+    // (a campanha foi criada agora e não teve gasto antes disso).
     metaDesde: '2026-07-14',
     metaAte: null,
-    metaMatch: 'WEBINAR_IA',
+    metaMatch: 'WEBINAR_IA_04',
     // Release dedicada (campanha "Webinar: IA na Igreja (27/07)"). Modo campaign:
     // entradas = adds, saídas = removes por dia.
     sendflowRelease: 'JWAVGWZfRnfIXT4eyyo4',
