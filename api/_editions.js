@@ -94,13 +94,50 @@ export const EDITIONS = {
     // utm_campaign (respostas vindas da campanha do webinar 13/07).
     pesquisaUtmMatch: 'WEBINAR_IA_13_JUL',
     metaDesde: '2026-07-04',
-    metaAte: null,
+    // Fecha em 13/07 (dia do webinar): o gasto WEBINAR_IA a partir de 14/07 é
+    // captação da edição seguinte (27/07) — sem esse corte, o 13/07 (janela
+    // aberta) contaria o gasto do 27/07 em dobro.
+    metaAte: '2026-07-13',
     metaMatch: 'WEBINAR_IA',
     sendflowRelease: '41iAdAhbPmpPp0onWRPG',
     sendflowGroup: null,
     sendflowMode: 'campaign', // campanha inteira (entradas e saídas por dia)
     sendflowDesde: '2026-07-04',
     diagDesde: '2026-07-13',
+    diagAte: null,
+  },
+
+  // 5ª edição — webinar IA de 27/07. Mesmas fontes das edições de IA, com aba de
+  // inscritos própria (Inscritos_27_07), release do Sendflow dedicada e pesquisa
+  // separada pela utm_campaign da campanha do 27/07.
+  'webinar-27-07': {
+    id: 'webinar-27-07',
+    label: 'Webinar IA 27/07',
+    inscritosGid: 68019645, // aba Inscritos_27_07 (planilha padrão do webinar IA)
+    // Aba dedicada a esta edição → toda inscrição nela é do 27/07 (sem corte).
+    inscritosDesde: null,
+    inscritosAte: null,
+    // Pesquisa: mesma planilha "Pesquisa Geral" (mistura webinars), separada pela
+    // utm_campaign da campanha do 27/07. O padrão de nomeação é WEBINAR_IA_<DD>_<MÊS>
+    // (ex.: WEBINAR_IA_13_JUL), então "WEBINAR_IA_27" cobre WEBINAR_IA_27_JUL /
+    // WEBINAR_IA_27_JULHO_26 / WEBINAR_IA_27_07 e exige ser WEBINAR IA (não Trilha).
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    pesquisaUtmMatch: 'WEBINAR_IA_27',
+    // A campanha do Meta ainda não começou; será nomeada com WEBINAR_IA + a data.
+    // Corte em 14/07 (dia após o webinar 13/07): o gasto WEBINAR_IA a partir daí é
+    // captação do 27/07 (as campanhas WEBINAR_IA são reusadas entre edições).
+    metaDesde: '2026-07-14',
+    metaAte: null,
+    metaMatch: 'WEBINAR_IA',
+    // Release dedicada (campanha "Webinar: IA na Igreja (27/07)"). Modo campaign:
+    // entradas = adds, saídas = removes por dia.
+    sendflowRelease: 'JWAVGWZfRnfIXT4eyyo4',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Webinar 27/07 (futuro): diagnósticos só a partir daí.
+    diagDesde: '2026-07-27',
     diagAte: null,
   },
 };

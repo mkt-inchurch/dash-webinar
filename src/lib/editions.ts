@@ -9,6 +9,7 @@ export interface Edition {
 
 // Mais recente primeiro (a primeira também é o rótulo padrão do seletor).
 export const EDITIONS: Edition[] = [
+  { id: 'webinar-27-07', label: 'Webinar IA 27/07' },
   { id: 'webinar-20-07', label: 'Webinar Trilha 20/07' },
   { id: 'webinar-13-07', label: 'Webinar IA 13/07' },
   { id: 'webinar-04-07', label: 'Webinar IA 04/07' },
