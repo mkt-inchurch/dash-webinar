@@ -59,10 +59,12 @@ export const EDITIONS = {
     inscritosTab: '', // primeira aba
     inscritosDesde: null,
     inscritosAte: null,
-    // "Inscritos ADS" aqui = tráfego pago do Meta identificado por UTM Medium=paid
-    // (a UTM Source é ig/fb/an/th, não contém WEBINAR_*).
-    inscritosAdsField: 'medium',
-    inscritosAdsMatch: 'paid',
+    // "Inscritos ADS" = tráfego pago do Meta, identificado pela UTM Source conter o
+    // nome da campanha (WEBINAR_TRILHA) — igual às edições de IA. O UTM Medium é
+    // inconsistente entre campanhas (paid / "00 - advtg" / macros quebradas), então
+    // filtrar por medium=paid subcontava (pegava só ~289 de ~664 pagos).
+    inscritosAdsField: 'source',
+    inscritosAdsMatch: 'WEBINAR_TRILHA',
     // Pesquisa: mesma planilha do IA, separada pela utm_campaign (não por data).
     pesquisaDesde: null,
     pesquisaAte: null,
