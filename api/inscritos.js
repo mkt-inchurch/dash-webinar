@@ -32,10 +32,14 @@ export default async function handler(req, res) {
   const DESDE = toBoundTs(ed.inscritosDesde, false);
   const ATE = toBoundTs(ed.inscritosAte, true);
   const SHEET_ID = ed.inscritosSheet || DEFAULT_SHEET_ID;
-  // Aba própria da edição; se vazia, usa a primeira aba da planilha.
+  // Endpoint /export (não gviz): o gviz RESPEITA filtros aplicados na planilha e
+  // devolve só as linhas visíveis — foi o que fez o card do 20/07 mostrar 365/2 em
+  // vez de 1023/668. O /export devolve a aba inteira, imune a filtros. A aba é
+  // selecionada pelo `inscritosGid` (o /export não aceita nome de aba); sem gid,
+  // usa a primeira aba.
   const CSV_URL =
-    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv` +
-    (ed.inscritosTab ? `&sheet=${encodeURIComponent(ed.inscritosTab)}` : '');
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv` +
+    (ed.inscritosGid != null ? `&gid=${ed.inscritosGid}` : '');
   try {
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
     if (!r.ok) {

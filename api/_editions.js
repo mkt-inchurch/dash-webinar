@@ -10,7 +10,7 @@ export const EDITIONS = {
   'webinar-15-06': {
     id: 'webinar-15-06',
     label: 'Webinar IA 15/06',
-    inscritosTab: 'Inscritos_15_06',
+    inscritosGid: 0, // aba Inscritos_15_06
     inscritosDesde: null,
     inscritosAte: '2026-06-18',
     pesquisaDesde: null,
@@ -31,7 +31,7 @@ export const EDITIONS = {
   'webinar-04-07': {
     id: 'webinar-04-07',
     label: 'Webinar IA 04/07',
-    inscritosTab: 'Inscritos_29_06',
+    inscritosGid: 51943459, // aba Inscritos_29_06
     inscritosDesde: '2026-06-19',
     inscritosAte: null,
     pesquisaDesde: '2026-06-19', // usado por /pesquisas e /icps (mesma planilha)
@@ -56,7 +56,7 @@ export const EDITIONS = {
     label: 'Webinar Trilha 20/07',
     // Planilha de inscritos própria (diferente da do webinar IA).
     inscritosSheet: '1q42q1ZlHGmNG0w6Fkm1lM-PazsrI8fzf78EQoPmznR0',
-    inscritosTab: '', // primeira aba
+    // Aba única (sem inscritosGid → primeira aba do /export).
     inscritosDesde: null,
     inscritosAte: null,
     // "Inscritos ADS" = tráfego pago do Meta, identificado pela UTM Source conter o
@@ -85,7 +85,7 @@ export const EDITIONS = {
   'webinar-13-07': {
     id: 'webinar-13-07',
     label: 'Webinar IA 13/07',
-    inscritosTab: 'Inscritos_13_07',
+    inscritosGid: 1271973666, // aba Inscritos_13_07
     inscritosDesde: '2026-07-04',
     inscritosAte: null,
     pesquisaDesde: '2026-07-04',
