@@ -58,7 +58,7 @@ const CHARTS: { key: string; label: string; get: (d: DashboardData) => number; f
   { key: 'diagnosticos', label: 'Diagnósticos', get: (d) => d.diagnosticos ?? 0, fmt: formatNumber },
 ];
 
-// "Webinar 15/06" → "15/06"
+// "Webinar IA 15/06" → "IA 15/06"
 const shortLabel = (label: string) => label.replace(/^Webinar\s+/i, '');
 
 // Índice do melhor valor da linha (ou -1). Ignora zeros.

@@ -9,7 +9,7 @@ export const EDITIONS = {
   // a partir de 19/06, então o corte em 18/06 já exclui o #3).
   'webinar-15-06': {
     id: 'webinar-15-06',
-    label: 'Webinar 15/06',
+    label: 'Webinar IA 15/06',
     inscritosTab: 'Inscritos_15_06',
     inscritosDesde: null,
     inscritosAte: '2026-06-18',
@@ -30,7 +30,7 @@ export const EDITIONS = {
   // 2ª edição — captação 19/06→03/07, webinar 04/07, diagnósticos 04–12/07.
   'webinar-04-07': {
     id: 'webinar-04-07',
-    label: 'Webinar 04/07',
+    label: 'Webinar IA 04/07',
     inscritosTab: 'Inscritos_29_06',
     inscritosDesde: '2026-06-19',
     inscritosAte: null,
@@ -53,7 +53,7 @@ export const EDITIONS = {
   // planilha de pesquisa, mas separada pela utm_campaign (não por data).
   'webinar-20-07': {
     id: 'webinar-20-07',
-    label: 'Webinar 20/07',
+    label: 'Webinar Trilha 20/07',
     // Planilha de inscritos própria (diferente da do webinar IA).
     inscritosSheet: '1q42q1ZlHGmNG0w6Fkm1lM-PazsrI8fzf78EQoPmznR0',
     inscritosTab: '', // primeira aba
@@ -84,7 +84,7 @@ export const EDITIONS = {
   // 3ª edição — captação a partir de 04/07 (00h), webinar 13/07.
   'webinar-13-07': {
     id: 'webinar-13-07',
-    label: 'Webinar 13/07',
+    label: 'Webinar IA 13/07',
     inscritosTab: 'Inscritos_13_07',
     inscritosDesde: '2026-07-04',
     inscritosAte: null,
