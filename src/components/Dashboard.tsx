@@ -166,10 +166,10 @@ export function Dashboard() {
           <div className="flex items-center gap-3 min-w-0">
             <img src={logoSrc} alt="inchurch" className="h-6 w-auto shrink-0 select-none" draggable={false} />
             <span className="h-6 w-px bg-bg-card-border hidden sm:block" />
-            {/* Exceção: a edição 20/07 (outro webinar) usa tag amarela p/ diferenciar. */}
+            {/* Exceção: as edições da Trilha (20/07 e 03/08 — outro webinar) usam tag amarela. */}
             <span className={cn(
               'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold whitespace-nowrap',
-              view !== 'compare' && edition === 'webinar-20-07'
+              view !== 'compare' && (edition === 'webinar-20-07' || edition === 'webinar-03-08')
                 ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-500'
                 : 'bg-in-green/10 border border-in-green/25 text-in-green')}>
               <BarChart3 className="w-4 h-4" />

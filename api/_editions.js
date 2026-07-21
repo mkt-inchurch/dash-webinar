@@ -56,7 +56,10 @@ export const EDITIONS = {
     label: 'Webinar Trilha 20/07',
     // Planilha de inscritos própria (diferente da do webinar IA).
     inscritosSheet: '1q42q1ZlHGmNG0w6Fkm1lM-PazsrI8fzf78EQoPmznR0',
-    // Aba única (sem inscritosGid → primeira aba do /export).
+    // Aba dedicada Inscritos_20_07 (gid 0). ANTES lia "a 1ª aba" (sem gid), mas ao
+    // criarem a aba Inscritos_03_08 (nova edição) o /export sem gid passou a
+    // devolvê-la (virou a 1ª aba) → o card mostrava ~3 em vez de 1433/890.
+    inscritosGid: 0,
     inscritosDesde: null,
     inscritosAte: null,
     // "Inscritos ADS" = tráfego pago do Meta, identificado pela UTM Source conter o
@@ -67,17 +70,57 @@ export const EDITIONS = {
     inscritosAdsMatch: 'WEBINAR_TRILHA',
     // Pesquisa: mesma planilha do IA, separada pela utm_campaign (não por data).
     pesquisaDesde: null,
-    pesquisaAte: null,
+    // Fecha em 20/07 (dia do webinar): respostas WEBINAR_TRILHA a partir de 21/07
+    // são captação da edição seguinte (03/08) — sem o corte, contariam nas duas.
+    pesquisaAte: '2026-07-20',
     pesquisaUtmMatch: 'WEBINAR_TRILHA',
     metaDesde: '2026-07-01',
-    metaAte: null,
+    // Fecha em 20/07 (dia do webinar): o gasto WEBINAR_TRILHA a partir de 21/07 é
+    // captação do 03/08 (mesmas campanhas/UTM) — o corte evita contagem dupla.
+    metaAte: '2026-07-20',
     metaMatch: 'WEBINAR_TRILHA',
     sendflowRelease: 'sLZ459MRRT9Z2MBe1KV4',
     sendflowGroup: null,
     sendflowMode: 'campaign', // entradas = adds, saídas = removes por dia
     sendflowDesde: '2026-07-10',
-    // O webinar é 20/07 (ainda não ocorreu): diagnósticos só a partir daí.
+    // Diagnósticos do 20/07: da data do webinar até a véspera do próximo (03/08).
     diagDesde: '2026-07-20',
+    diagAte: '2026-08-02',
+  },
+
+  // 6ª edição — Trilha da Integração (03/08): mesma trilha do 20/07 (Pedro Franco),
+  // turma seguinte. Fontes próprias: aba Inscritos_03_08 na planilha dedicada da
+  // Trilha e release do Sendflow "Webinar: Trilha de Integração (03/08)". Meta e
+  // pesquisa reusam as campanhas WEBINAR_TRILHA, separadas do 20/07 por DATA
+  // (captação a partir de 21/07, após o webinar 20/07).
+  'webinar-03-08': {
+    id: 'webinar-03-08',
+    label: 'Webinar Trilha 03/08',
+    inscritosSheet: '1q42q1ZlHGmNG0w6Fkm1lM-PazsrI8fzf78EQoPmznR0',
+    inscritosGid: 1613671491, // aba Inscritos_03_08
+    // Aba dedicada a esta edição → toda inscrição nela é do 03/08 (sem corte de data).
+    inscritosDesde: null,
+    inscritosAte: null,
+    // "Inscritos ADS" pela UTM Source conter WEBINAR_TRILHA (igual ao 20/07).
+    inscritosAdsField: 'source',
+    inscritosAdsMatch: 'WEBINAR_TRILHA',
+    // Pesquisa: mesma planilha do IA, mesma utm WEBINAR_TRILHA do 20/07, separada
+    // por data — respostas a partir de 21/07 (após o webinar 20/07).
+    pesquisaDesde: '2026-07-21',
+    pesquisaAte: null,
+    pesquisaUtmMatch: 'WEBINAR_TRILHA',
+    // Meta: mesmas campanhas WEBINAR_TRILHA, gasto a partir de 21/07 (nova captação).
+    metaDesde: '2026-07-21',
+    metaAte: null,
+    metaMatch: 'WEBINAR_TRILHA',
+    // Release dedicada "Webinar: Trilha de Integração (03/08)". Modo campaign:
+    // entradas = adds, saídas = removes por dia. Sem corte (a release é só do 03/08).
+    sendflowRelease: 'oJMcyfw9uFd5zYJYZx5l',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Webinar 03/08 (futuro): diagnósticos só a partir daí.
+    diagDesde: '2026-08-03',
     diagAte: null,
   },
 
