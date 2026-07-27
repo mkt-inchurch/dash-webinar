@@ -188,20 +188,17 @@ export const EDITIONS = {
     diagAte: '2026-08-09',
   },
 
-  // 7ª edição — Webinar IA 10/08. SCAFFOLD (criado em 27/07, antes de as fontes
-  // existirem). Enquanto os 4 campos marcados "TODO" estiverem com placeholder, os
-  // cards ficam ZERADOS de propósito — NÃO mostram dados de outra edição. Ao criar
-  // cada fonte, troque só o campo correspondente (leia a nota de cada TODO).
+  // 7ª edição — Webinar IA 10/08. Inscritos e Sendflow já ligados às fontes reais
+  // (27/07). FALTAM 2 conectores (campos marcados "TODO"): metaMatch e
+  // pesquisaUtmMatch — enquanto forem placeholder, só esses 2 cards ficam zerados.
   'webinar-10-08': {
     id: 'webinar-10-08',
     label: 'Webinar IA 10/08',
-    // TODO(inscritos): criar a aba "Inscritos_10_08" na planilha padrão do IA
-    // (1QkFMFOCMMAzj3BgEoiCtTD_YHSu48p51xmu9Y3TaulM), pôr o gid dela aqui e DEPOIS
-    // trocar inscritosDesde para null (a aba é dedicada à edição). Enquanto o gid for
-    // null, o /export cairia na 1ª aba (15/06); a trava inscritosDesde:'2026-08-10'
-    // zera o card até lá.
-    inscritosGid: null,
-    inscritosDesde: '2026-08-10',
+    // Aba dedicada Inscritos_10_08 (gid 550694705) na planilha padrão do IA → toda
+    // inscrição nela é do 10/08 (sem corte de data). ADS = default (UTM Source
+    // contém WEBINAR_IA).
+    inscritosGid: 550694705,
+    inscritosDesde: null,
     inscritosAte: null,
     // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign.
     pesquisaDesde: null,
@@ -216,9 +213,9 @@ export const EDITIONS = {
     metaDesde: '2026-07-28',
     metaAte: null,
     metaMatch: 'WEBINAR_IA_05__TODO',
-    // TODO(sendflow): pôr o release da campanha "Webinar: IA na Igreja (10/08)"
-    // (crie a release no Sendflow primeiro). Release vazio → card fica indisponível.
-    sendflowRelease: '',
+    // Release dedicada "Webinar: IA na Igreja (10/08)" (live 10/08 19h). Modo
+    // campaign: entradas = adds, saídas = removes por dia. Sem corte (release só do 10/08).
+    sendflowRelease: 'ZcU7ANHYxOiMroIb3biG',
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
