@@ -119,9 +119,10 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 03/08 (futuro): diagnósticos só a partir daí.
+    // Webinar 03/08: da data do webinar até a véspera do próximo webinar IA (10/08).
+    // Antes era aberto (null), o que faria o 03/08 absorver os diagnósticos do 10/08.
     diagDesde: '2026-08-03',
-    diagAte: null,
+    diagAte: '2026-08-09',
   },
 
   // 3ª edição — captação a partir de 04/07 (00h), webinar 13/07.
@@ -180,8 +181,46 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 27/07 (futuro): diagnósticos só a partir daí.
+    // Webinar 27/07: da data do webinar até a véspera do próximo webinar IA (10/08).
+    // Antes era aberto (null) — o que fazia o 27/07 ABSORVER os diagnósticos do 10/08
+    // (e do 03/08), a mesma dupla contagem já observada no 13/07 (que segue aberto).
     diagDesde: '2026-07-27',
+    diagAte: '2026-08-09',
+  },
+
+  // 7ª edição — Webinar IA 10/08. Inscritos e Sendflow já ligados às fontes reais
+  // (27/07). FALTAM 2 conectores (campos marcados "TODO"): metaMatch e
+  // pesquisaUtmMatch — enquanto forem placeholder, só esses 2 cards ficam zerados.
+  'webinar-10-08': {
+    id: 'webinar-10-08',
+    label: 'Webinar IA 10/08',
+    // Aba dedicada Inscritos_10_08 (gid 550694705) na planilha padrão do IA → toda
+    // inscrição nela é do 10/08 (sem corte de data). ADS = default (UTM Source
+    // contém WEBINAR_IA).
+    inscritosGid: 550694705,
+    inscritosDesde: null,
+    inscritosAte: null,
+    // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign.
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    // TODO(pesquisa): confirmar o token real da utm_campaign do 10/08 (padrão
+    // WEBINAR_IA_<DD>_<MÊS>, provável "WEBINAR_IA_10_AGO"). O placeholder não casa
+    // nada de propósito → pesquisas/ICPs ficam 0 até trocar.
+    pesquisaUtmMatch: 'WEBINAR_IA_10__TODO',
+    // TODO(meta): pôr o termo ÚNICO do nome da campanha do 10/08 (as antigas são
+    // WEBINAR_IA_02 / _04; a próxima provavelmente WEBINAR_IA_05). O placeholder não
+    // casa nenhuma campanha → gasto/leads ficam 0 até trocar.
+    metaDesde: '2026-07-28',
+    metaAte: null,
+    metaMatch: 'WEBINAR_IA_05__TODO',
+    // Release dedicada "Webinar: IA na Igreja (10/08)" (live 10/08 19h). Modo
+    // campaign: entradas = adds, saídas = removes por dia. Sem corte (release só do 10/08).
+    sendflowRelease: 'ZcU7ANHYxOiMroIb3biG',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Webinar 10/08 (futuro): diagnósticos só a partir daí.
+    diagDesde: '2026-08-10',
     diagAte: null,
   },
 };
