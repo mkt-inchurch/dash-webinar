@@ -168,12 +168,12 @@ export const EDITIONS = {
     pesquisaDesde: null,
     pesquisaAte: null,
     pesquisaUtmMatch: 'WEBINAR_IA_27',
-    // Campanha própria do 27/07: "…| WEBINAR_IA_04 | 27.07" (id 120248071509010003).
-    // O termo WEBINAR_IA_04 é único desta edição (as antigas são WEBINAR_IA_02),
-    // então isola o gasto sem depender de data. Mantém metaDesde 14/07 como piso
-    // (a campanha foi criada agora e não teve gasto antes disso).
+    // Campanhas "WEBINAR_IA_04" (ids 120248071509010003 etc.). ATENÇÃO: em 28/07 o
+    // time RENOMEOU essas MESMAS campanhas de "| 27.07" para "| 10-08" e passou a
+    // usá-las na captação do 10/08 — 27/07 e 10/08 COMPARTILHAM as campanhas. Por
+    // isso o 27/07 fecha em 27/07 (metaAte): o gasto de 28/07 em diante é do 10/08.
     metaDesde: '2026-07-14',
-    metaAte: null,
+    metaAte: '2026-07-27',
     metaMatch: 'WEBINAR_IA_04',
     // Release dedicada (campanha "Webinar: IA na Igreja (27/07)"). Modo campaign:
     // entradas = adds, saídas = removes por dia.
@@ -188,9 +188,7 @@ export const EDITIONS = {
     diagAte: '2026-08-09',
   },
 
-  // 7ª edição — Webinar IA 10/08. Inscritos e Sendflow já ligados às fontes reais
-  // (27/07). FALTAM 2 conectores (campos marcados "TODO"): metaMatch e
-  // pesquisaUtmMatch — enquanto forem placeholder, só esses 2 cards ficam zerados.
+  // 7ª edição — Webinar IA 10/08. As 4 fontes ligadas aos dados reais (28/07).
   'webinar-10-08': {
     id: 'webinar-10-08',
     label: 'Webinar IA 10/08',
@@ -203,16 +201,16 @@ export const EDITIONS = {
     // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign.
     pesquisaDesde: null,
     pesquisaAte: null,
-    // TODO(pesquisa): confirmar o token real da utm_campaign do 10/08 (padrão
-    // WEBINAR_IA_<DD>_<MÊS>, provável "WEBINAR_IA_10_AGO"). O placeholder não casa
-    // nada de propósito → pesquisas/ICPs ficam 0 até trocar.
-    pesquisaUtmMatch: 'WEBINAR_IA_10__TODO',
-    // TODO(meta): pôr o termo ÚNICO do nome da campanha do 10/08 (as antigas são
-    // WEBINAR_IA_02 / _04; a próxima provavelmente WEBINAR_IA_05). O placeholder não
-    // casa nenhuma campanha → gasto/leads ficam 0 até trocar.
+    // Pesquisa do 10/08: utm_campaign contém "WEBINAR_IA_10_AGO" (cobre também
+    // DISPARAI_META_WEBINAR_IA_10_AGO, do disparo). Não colide com outras edições.
+    pesquisaUtmMatch: 'WEBINAR_IA_10_AGO',
+    // Meta: o 10/08 REUSA as MESMAS campanhas do 27/07 — o time renomeou
+    // "WEBINAR_IA_04 | 27.07" para "WEBINAR_IA_04 | 10-08" (mesmos ids). Como o nome
+    // ainda contém WEBINAR_IA_04, a separação 27/07 × 10/08 é só por DATA: o 27/07
+    // fecha em 27/07 (metaAte) e o 10/08 conta de 28/07 (metaDesde) em diante.
     metaDesde: '2026-07-28',
     metaAte: null,
-    metaMatch: 'WEBINAR_IA_05__TODO',
+    metaMatch: 'WEBINAR_IA_04',
     // Release dedicada "Webinar: IA na Igreja (10/08)" (live 10/08 19h). Modo
     // campaign: entradas = adds, saídas = removes por dia. Sem corte (release só do 10/08).
     sendflowRelease: 'ZcU7ANHYxOiMroIb3biG',
