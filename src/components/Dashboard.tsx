@@ -9,6 +9,8 @@ import { CampanhasTable } from './CampanhasTable';
 import { EditionsComparison } from './EditionsComparison';
 import { MetricChart } from './MetricChart';
 import { UtmTable } from './UtmTable';
+import { LiveMetricsTable } from './LiveMetricsTable';
+import { getLiveMetrics } from '../lib/liveMetrics';
 import { fullRange, applyDateFilter, isFullRange, DateRange } from '../lib/dateFilter';
 import { formatCurrency, formatNumber, formatPercent, formatCompact, cn } from '../lib/utils';
 import { useTheme } from '../lib/theme';
@@ -357,6 +359,14 @@ export function Dashboard() {
           <h2 className={sectionTitle}>Funil & ICPs</h2>
           <FunilCharts data={data} inscritosSerie={inscritosSerie} />
         </div>
+
+        {/* Métricas da Live (YouTube) — só nas edições que têm dados extraídos. */}
+        {getLiveMetrics(edition) && (
+          <div>
+            <h2 className={sectionTitle}>Métricas da Live (YouTube)</h2>
+            <LiveMetricsTable edition={edition} />
+          </div>
+        )}
 
         {/* Por Campanha */}
         {data.campanhas && data.campanhas.length > 0 && (
