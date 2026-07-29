@@ -33,6 +33,7 @@ function getKeys() {
     process.env.SENDFLOW_API_KEY_2,
     process.env.SENDFLOW_API_KEY_3,
     process.env.SENDFLOW_API_KEY_4,
+    process.env.SENDFLOW_API_KEY_5,
     ...String(process.env.SENDFLOW_API_KEYS || '').split(','),
   ];
   const seen = new Set();
@@ -45,6 +46,19 @@ function getKeys() {
 }
 
 const sfHeaders = (token) => ({ Authorization: `Bearer ${token}`, Accept: 'application/json', 'User-Agent': BROWSER_UA });
+
+// Distribui a carga entre as chaves. Sempre começar pela chave 1 concentra TODO o
+// rate limit numa só (ela estoura primeiro e derruba as outras em cascata). Aqui a
+// ordem é rotacionada por edição (release) + minuto: cada release/minuto prefere
+// uma chave diferente, e o burst da tela de Comparação (7 edições de uma vez) se
+// espalha entre as chaves em vez de socar todas na primeira.
+function orderedKeys(keys, seed) {
+  if (keys.length <= 1) return keys;
+  let h = 0;
+  for (const c of String(seed || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const offset = (h + Math.floor(Date.now() / 60000)) % keys.length;
+  return keys.slice(offset).concat(keys.slice(0, offset));
+}
 
 export default async function handler(req, res) {
   const keys = getKeys();
@@ -77,7 +91,7 @@ export default async function handler(req, res) {
     // limit (403) ou com erro. Guarda a chave que funcionou p/ reusar no fetch de
     // grupos.
     let data = null, token = null, lastStatus = 0, lastDetail = '';
-    for (const k of keys) {
+    for (const k of orderedKeys(keys, RELEASE_ID)) {
       const response = await fetch(`${API_BASE}/releases/${RELEASE_ID}/analytics`, { headers: sfHeaders(k) });
       if (response.ok) { data = await response.json(); token = k; break; }
       lastStatus = response.status;
@@ -85,9 +99,11 @@ export default async function handler(req, res) {
     }
 
     if (!data) {
-      // Todas as chaves falharam (provável rate limit em todas). Cacheia o erro
-      // alguns minutos para não martelar a API.
-      res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
+      // Todas as chaves falharam (provável rate limit em todas). Cacheia o erro por
+      // 30 min SEM stale-while-revalidate: sem SWR a borda não re-dispara a origem
+      // em background, então chaves já bloqueadas param de ser cutucadas e têm chance
+      // de esfriar (era o que acumulava os bloqueios). NÃO reduza este TTL.
+      res.setHeader('Cache-Control', 's-maxage=1800');
       return res.status(502).json({ error: `Sendflow respondeu ${lastStatus} em todas as ${keys.length} chave(s)`, detail: lastDetail });
     }
 
@@ -126,7 +142,10 @@ export default async function handler(req, res) {
     const payload = { entradasGrupo, porDia };
     if (saidas != null) payload.saidas = saidas;
 
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+    // Entradas do grupo são cumulativas e mudam devagar — 30 min de cache de borda
+    // é folgado e absorve o polling do painel (a origem/Sendflow é tocada no máximo
+    // ~1x a cada 30 min por edição, em vez de a cada poll).
+    res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=3600');
     return res.status(200).json(payload);
   } catch (err) {
     return res.status(500).json({ error: String(err) });

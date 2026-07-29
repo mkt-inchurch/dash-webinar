@@ -147,7 +147,9 @@ async function applySendflowMetrics(base: DashboardData, series: DashboardSeries
   // Só a API por edição é confiável por edição; o /sendflow.json é um snapshot
   // estático (de uma edição só), então NÃO serve de fallback entre edições.
   try {
-    const res = await fetch(`/api/sendflow?ed=${ed}`, { cache: 'no-store' });
+    // Sem `no-store`: deixa o cache de borda/navegador servir (a Sendflow tem rate
+    // limit agressivo e bloqueia a chave por 24h se martelada).
+    const res = await fetch(`/api/sendflow?ed=${ed}`);
     if (res.ok) {
       const sf = await res.json();
       if (sf && typeof sf.entradasGrupo === 'number') {
@@ -308,7 +310,12 @@ export function useDashboardData(edition: string) {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    // Auto-refresh a cada 30 min (era 5 min). Os dados mudam devagar e o polling
+    // curto socava a API da Sendflow, que bloqueia a chave por 24h. Só refaz quando
+    // a aba está visível — abas de fundo abertas o dia todo não geram requisição.
+    const interval = setInterval(() => {
+      if (typeof document === 'undefined' || !document.hidden) fetchData();
+    }, 30 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
