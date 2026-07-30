@@ -221,6 +221,49 @@ export const EDITIONS = {
     diagDesde: '2026-08-10',
     diagAte: null,
   },
+
+  // 8ª edição — Webinar Igreja Digital 24/08 (Levak × inChurch). Webinar DIFERENTE
+  // dos de IA/Trilha. Inscritos e Sendflow ligados às fontes reais (28/07). FALTAM
+  // (campos "TODO", pendentes das campanhas do Meta que ainda não foram vinculadas):
+  // metaMatch, inscritosAdsMatch e pesquisaUtmMatch — enquanto placeholder, o card
+  // Meta fica "indisponível" e Inscritos ADS / Pesquisas / ICPs ficam 0.
+  'webinar-24-08': {
+    id: 'webinar-24-08',
+    label: 'Webinar Igreja Digital 24/08',
+    // Planilha de inscritos própria (dedicada ao Igreja Digital), aba
+    // Inscritos_24_08 (gid 0). Mesmas colunas da planilha do IA (Data/Email/UTM*).
+    inscritosSheet: '1bU9BH1bx23bwqKNVT0welq9EyvyfeFbODZjNYZzQ1NU',
+    inscritosGid: 0,
+    inscritosDesde: null,
+    inscritosAte: null,
+    // TODO(ADS): "Inscritos ADS" = tráfego pago, identificado pela UTM Source conter
+    // o nome da campanha. Depende das campanhas do Meta (ainda não vinculadas). O
+    // placeholder NÃO casa nada de propósito → ADS fica 0 e não conta por engano
+    // linhas de outras campanhas (ex.: a única inscrição atual veio de WEBINAR_IA).
+    // Ao vincular, trocar para o termo real (o MESMO usado em metaMatch).
+    inscritosAdsField: 'source',
+    inscritosAdsMatch: 'IGREJA_DIGITAL__TODO',
+    // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign.
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    // TODO(pesquisa): pôr a utm_campaign real do Igreja Digital quando começarem as
+    // respostas (ainda não há token na planilha). Placeholder não casa nada → 0.
+    pesquisaUtmMatch: 'IGREJA_DIGITAL__TODO',
+    // TODO(meta): pôr o termo único do nome da campanha do Igreja Digital (ainda não
+    // vinculada). Placeholder não casa campanha → card Meta "indisponível"/0.
+    metaDesde: '2026-07-28',
+    metaAte: null,
+    metaMatch: 'IGREJA_DIGITAL__TODO',
+    // Release dedicada "Webinar: Igreja Digital" (grupo Igreja Digital). Modo
+    // campaign: entradas = adds, saídas = removes por dia. Sem corte (release só desta edição).
+    sendflowRelease: 'GOyYgAfg2V3AvG25qZ49',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Webinar 24/08 (futuro): diagnósticos (planilha compartilhada) só a partir daí.
+    diagDesde: '2026-08-24',
+    diagAte: null,
+  },
 };
 
 export const DEFAULT_EDITION = 'webinar-13-07';
