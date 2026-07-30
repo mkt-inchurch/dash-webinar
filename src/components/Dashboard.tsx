@@ -168,12 +168,20 @@ export function Dashboard() {
           <div className="flex items-center gap-3 min-w-0">
             <img src={logoSrc} alt="inchurch" className="h-6 w-auto shrink-0 select-none" draggable={false} />
             <span className="h-6 w-px bg-bg-card-border hidden sm:block" />
-            {/* Exceção: as edições da Trilha (20/07 e 03/08 — outro webinar) usam tag amarela. */}
-            <span className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold whitespace-nowrap',
-              view !== 'compare' && (edition === 'webinar-20-07' || edition === 'webinar-03-08')
-                ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-500'
-                : 'bg-in-green/10 border border-in-green/25 text-in-green')}>
+            {/* Cor da tag por webinar: Trilha (20/07, 03/08) amarela; Igreja Digital
+                (24/08) verde-limão (#a6f60d, cor da marca); IA verde padrão. O hex do
+                Igreja Digital vai por style inline (fora da paleta do Tailwind). */}
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold whitespace-nowrap border',
+                view !== 'compare' && edition === 'webinar-24-08'
+                  ? ''
+                  : view !== 'compare' && (edition === 'webinar-20-07' || edition === 'webinar-03-08')
+                    ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500'
+                    : 'bg-in-green/10 border-in-green/25 text-in-green')}
+              style={view !== 'compare' && edition === 'webinar-24-08'
+                ? { backgroundColor: 'rgba(166,246,13,0.1)', borderColor: 'rgba(166,246,13,0.35)', color: '#a6f60d' }
+                : undefined}>
               <BarChart3 className="w-4 h-4" />
               {view === 'compare' ? 'Todas as edições' : editionLabel(edition)}
             </span>
