@@ -23,10 +23,13 @@ function keyToISO(k) {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 }
 
-// Lê as chaves do Sendflow das env vars, na ordem de tentativa. Aceita várias para
-// rotação quando uma é bloqueada por rate limit (403 api-key-blocked): as nomeadas
-// SENDFLOW_API_KEY, SENDFLOW_API_KEY_2, _3, _4, e/ou uma lista separada por vírgula
-// em SENDFLOW_API_KEYS. Duplicatas e vazios são descartados.
+// Lê as chaves do Sendflow das env vars, na ordem de tentativa: as nomeadas
+// SENDFLOW_API_KEY, SENDFLOW_API_KEY_2, _3, _4, _5 e/ou uma lista separada por
+// vírgula em SENDFLOW_API_KEYS. Duplicatas e vazios são descartados.
+// ATENÇÃO: várias chaves servem só para espalhar o rate limit por MINUTO
+// (rate-limit-exceeded). Elas NÃO contornam o `api-key-blocked`, que é bloqueio da
+// CONTA/IP de egress — nesse estado toda chave nova já nasce bloqueada. Criar mais
+// chaves não resolve; o que resolve é reduzir o volume de requisições.
 function getKeys() {
   const raw = [
     process.env.SENDFLOW_API_KEY,
@@ -87,24 +90,36 @@ export default async function handler(req, res) {
   };
 
   try {
-    // Tenta cada chave em ordem até uma responder OK; pula as bloqueadas por rate
-    // limit (403) ou com erro. Guarda a chave que funcionou p/ reusar no fetch de
-    // grupos.
-    let data = null, token = null, lastStatus = 0, lastDetail = '';
+    // Tenta cada chave em ordem até uma responder OK. IMPORTANTE: para na PRIMEIRA
+    // que responder `api-key-blocked` — esse bloqueio é da CONTA/IP (o egress da
+    // Vercel), não da chave, então as outras responderiam o mesmo. Insistir nas 7
+    // transformava cada request do painel em 7 requests na SendAPI (e a tela de
+    // Comparação, 9 edições, em ~63), o que mantinha o rate limit sempre estourado e
+    // acumulava bloqueios. Só erros específicos da chave (ex.: 401) fazem tentar a
+    // próxima. Guarda a chave que funcionou p/ reusar no fetch de grupos.
+    let data = null, token = null, lastStatus = 0, lastDetail = '', blocked = null, tried = 0;
     for (const k of orderedKeys(keys, RELEASE_ID)) {
+      tried++;
       const response = await fetch(`${API_BASE}/releases/${RELEASE_ID}/analytics`, { headers: sfHeaders(k) });
       if (response.ok) { data = await response.json(); token = k; break; }
       lastStatus = response.status;
       lastDetail = (await response.text()).slice(0, 200);
+      let code = '';
+      try { const j = JSON.parse(lastDetail); code = j.code || ''; blocked = code === 'api-key-blocked' ? j : null; } catch { /* corpo não-JSON */ }
+      if (blocked) break; // conta bloqueada: as demais chaves dariam o mesmo
     }
 
     if (!data) {
-      // Todas as chaves falharam (provável rate limit em todas). Cacheia o erro por
-      // 30 min SEM stale-while-revalidate: sem SWR a borda não re-dispara a origem
-      // em background, então chaves já bloqueadas param de ser cutucadas e têm chance
-      // de esfriar (era o que acumulava os bloqueios). NÃO reduza este TTL.
-      res.setHeader('Cache-Control', 's-maxage=1800');
-      return res.status(502).json({ error: `Sendflow respondeu ${lastStatus} em todas as ${keys.length} chave(s)`, detail: lastDetail });
+      // Sem SWR: a borda não re-dispara a origem em background, então a conta para de
+      // ser cutucada e o bloqueio tem chance de esfriar. Quando a SendAPI diz até
+      // quando está bloqueada (retryAfterMs), o cache do erro dura esse tempo — no
+      // máximo 3h, para o card religar sozinho pouco depois da liberação. NÃO reduza.
+      const ttl = blocked?.retryAfterMs
+        ? Math.min(Math.round(blocked.retryAfterMs / 1000), 3 * 3600)
+        : 1800;
+      res.setHeader('Cache-Control', `s-maxage=${ttl}`);
+      const alvo = blocked ? `conta bloqueada (api-key-blocked)` : `${tried} chave(s) de ${keys.length}`;
+      return res.status(502).json({ error: `Sendflow respondeu ${lastStatus} — ${alvo}`, detail: lastDetail });
     }
 
     // Entradas (brutas) por dia, só a partir do CUTOFF.
