@@ -139,16 +139,14 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed
   }
 }
 
-// "Entradas no Grupo" vem do Sendflow (grupo Webinar: IA na Igreja #3), ao vivo
-// via /api/sendflow. Se a função não estiver disponível (ex.: `vite dev` sem
-// serverless, ou falta de token), cai no snapshot estático public/sendflow.json,
-// e por fim mantém o valor da planilha.
+// "Entradas no Grupo" vem do Sendflow via /api/sendflow, que NÃO consulta a SendAPI
+// ao vivo: serve o snapshot publicado de hora em hora pelo workflow "Sendflow
+// snapshot" (a SendAPI bloqueia a conta por 24h quando recebe requisições demais).
+// Se a função não estiver disponível (ex.: `vite dev`, sem serverless) ou a edição
+// ainda não estiver no snapshot, o card zera e entra no aviso de fonte indisponível.
 async function applySendflowMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[]): Promise<DashboardData> {
-  // Só a API por edição é confiável por edição; o /sendflow.json é um snapshot
-  // estático (de uma edição só), então NÃO serve de fallback entre edições.
   try {
-    // Sem `no-store`: deixa o cache de borda/navegador servir (a Sendflow tem rate
-    // limit agressivo e bloqueia a chave por 24h se martelada).
+    // Sem `no-store`: deixa o cache de borda/navegador servir.
     const res = await fetch(`/api/sendflow?ed=${ed}`);
     if (res.ok) {
       const sf = await res.json();

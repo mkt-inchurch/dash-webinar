@@ -1,0 +1,58 @@
+# Coleta agendada do Sendflow: de hora em hora busca o analytics de cada edição e
+# publica o snapshot na branch `data`, lida pela função /api/sendflow.
+#
+# Assim nenhuma visita ao painel toca a SendAPI — o volume de requisições fica fixo
+# (N edições por hora, de um IP do GitHub) em vez de crescer com o tráfego, o que era
+# a causa dos bloqueios de 24h (`api-key-blocked`, que é por CONTA/IP).
+#
+# Requer o secret SENDFLOW_API_KEY no repositório (Settings → Secrets and variables →
+# Actions). Aceita também SENDFLOW_API_KEY_2.._5 / SENDFLOW_API_KEYS, opcionais.
+#
+# O commit vai com [skip ci] para a Vercel não gerar um deploy a cada hora.
+
+name: Sendflow snapshot
+
+on:
+  schedule:
+    - cron: '7 * * * *' # de hora em hora (minuto 7, para fugir do pico do :00)
+  workflow_dispatch: # permite rodar na hora (ex.: ao criar uma edição nova)
+
+# Só um snapshot por vez; se um atrasar, o próximo não concorre pelo mesmo arquivo.
+concurrency:
+  group: sendflow-snapshot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Coletar snapshot
+        env:
+          SENDFLOW_API_KEY: ${{ secrets.SENDFLOW_API_KEY }}
+          SENDFLOW_API_KEY_2: ${{ secrets.SENDFLOW_API_KEY_2 }}
+          SENDFLOW_API_KEY_3: ${{ secrets.SENDFLOW_API_KEY_3 }}
+          SENDFLOW_API_KEY_4: ${{ secrets.SENDFLOW_API_KEY_4 }}
+          SENDFLOW_API_KEY_5: ${{ secrets.SENDFLOW_API_KEY_5 }}
+          SENDFLOW_API_KEYS: ${{ secrets.SENDFLOW_API_KEYS }}
+        run: node scripts/sendflow-snapshot.mjs
+
+      - name: Publicar na branch `data`
+        run: |
+          set -e
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # Branch órfã só com o snapshot (sem histórico do código, sem build da Vercel).
+          git checkout --orphan data-tmp
+          git rm -rf --cached . >/dev/null
+          git add -f sendflow-snapshot.json
+          git commit -m 'chore(data): snapshot do Sendflow [skip ci]'
+          git push -f origin data-tmp:data
