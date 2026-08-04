@@ -61,6 +61,13 @@ for (const ed of Object.values(EDITIONS)) {
   if (res.erro) {
     erros[ed.id] = res.erro;
     console.error(`✗ ${ed.id}: ${res.erro}`);
+    // Problema de conta/credencial (bloqueio de 24h ou chave inválida): as demais
+    // edições dariam o mesmo. Abortar mantém o run em UMA requisição, em vez de uma
+    // por edição — é o que dá ao bloqueio a chance de esfriar.
+    if (res.erro.includes('api-key-blocked') || res.erro.startsWith('401')) {
+      console.error(`Falha de conta/chave — run abortado (snapshot anterior preservado).`);
+      break;
+    }
     continue;
   }
   let grupos = null;
