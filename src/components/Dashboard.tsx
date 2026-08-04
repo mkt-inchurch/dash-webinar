@@ -26,6 +26,9 @@ import {
 
 const sectionTitle = 'text-sm font-mono text-fg-subtle mb-4 px-2 uppercase tracking-widest';
 
+// Edições do webinar "Trilha da Integração" (tag amarela no header).
+const TRILHA_EDITIONS = new Set(['webinar-20-07', 'webinar-03-08', 'webinar-17-08']);
+
 // Rótulos amigáveis das fontes de dados (para o aviso de indisponibilidade).
 const SOURCE_LABELS: Record<string, string> = {
   meta: 'Meta Ads',
@@ -168,15 +171,15 @@ export function Dashboard() {
           <div className="flex items-center gap-3 min-w-0">
             <img src={logoSrc} alt="inchurch" className="h-6 w-auto shrink-0 select-none" draggable={false} />
             <span className="h-6 w-px bg-bg-card-border hidden sm:block" />
-            {/* Cor da tag por webinar: Trilha (20/07, 03/08) amarela; Igreja Digital
-                (24/08) verde-limão (#a6f60d, cor da marca); IA verde padrão. O hex do
-                Igreja Digital vai por style inline (fora da paleta do Tailwind). */}
+            {/* Cor da tag por webinar: Trilha (20/07, 03/08, 17/08) amarela; Igreja
+                Digital (24/08) verde-limão (#a6f60d, cor da marca); IA verde padrão. O
+                hex do Igreja Digital vai por style inline (fora da paleta do Tailwind). */}
             <span
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold whitespace-nowrap border',
                 view !== 'compare' && edition === 'webinar-24-08'
                   ? ''
-                  : view !== 'compare' && (edition === 'webinar-20-07' || edition === 'webinar-03-08')
+                  : view !== 'compare' && TRILHA_EDITIONS.has(edition)
                     ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500'
                     : 'bg-in-green/10 border-in-green/25 text-in-green')}
               style={view !== 'compare' && edition === 'webinar-24-08'

@@ -105,13 +105,20 @@ export const EDITIONS = {
     inscritosAdsField: 'source',
     inscritosAdsMatch: 'WEBINAR_TRILHA',
     // Pesquisa: mesma planilha do IA, mesma utm WEBINAR_TRILHA do 20/07, separada
-    // por data — respostas a partir de 21/07 (após o webinar 20/07).
+    // por data — respostas a partir de 21/07 (após o webinar 20/07) até 03/08 (dia
+    // do webinar). Além do corte de data, EXCLUI a utm própria da edição 17/08
+    // (WEBINAR_TRILHA_INTEGRACAO_17_AGO): a captação do 17/08 começou em 31/07,
+    // ainda dentro da janela do 03/08 — sem o exclude, as duas contariam as mesmas
+    // respostas.
     pesquisaDesde: '2026-07-21',
-    pesquisaAte: null,
+    pesquisaAte: '2026-08-03',
     pesquisaUtmMatch: 'WEBINAR_TRILHA',
+    pesquisaUtmExclude: '_17_AGO',
     // Meta: mesmas campanhas WEBINAR_TRILHA, gasto a partir de 21/07 (nova captação).
+    // Fecha em 03/08 (dia do webinar): o gasto WEBINAR_TRILHA de 04/08 em diante é
+    // captação da edição seguinte (17/08), que reusa as MESMAS campanhas.
     metaDesde: '2026-07-21',
-    metaAte: null,
+    metaAte: '2026-08-03',
     metaMatch: 'WEBINAR_TRILHA',
     // Release dedicada "Webinar: Trilha de Integração (03/08)". Modo campaign:
     // entradas = adds, saídas = removes por dia. Sem corte (a release é só do 03/08).
@@ -217,9 +224,9 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 10/08 (futuro): diagnósticos só a partir daí.
+    // Webinar 10/08: da data do webinar até a véspera do próximo (Trilha 17/08).
     diagDesde: '2026-08-10',
-    diagAte: null,
+    diagAte: '2026-08-16',
   },
 
   // 8ª edição — Webinar Igreja Digital 24/08 (Levak × inChurch). Webinar DIFERENTE
@@ -263,6 +270,49 @@ export const EDITIONS = {
     // Webinar 24/08 (futuro): diagnósticos (planilha compartilhada) só a partir daí.
     diagDesde: '2026-08-24',
     diagAte: null,
+  },
+
+  // 9ª edição — Trilha da Integração (17/08): mesma trilha do 20/07 e do 03/08
+  // (Pedro Franco), turma seguinte. Aba de inscritos e release do Sendflow
+  // próprias; Meta reusa as MESMAS campanhas WEBINAR_TRILHA (separação por DATA,
+  // a partir de 04/08) e a pesquisa é separada pela utm_campaign própria.
+  'webinar-17-08': {
+    id: 'webinar-17-08',
+    label: 'Webinar Trilha 17/08',
+    inscritosSheet: '1q42q1ZlHGmNG0w6Fkm1lM-PazsrI8fzf78EQoPmznR0',
+    inscritosGid: 1358620876, // aba Inscritos_17_08
+    // Aba dedicada a esta edição → toda inscrição nela é do 17/08 (sem corte de data).
+    inscritosDesde: null,
+    inscritosAte: null,
+    // "Inscritos ADS": aqui NÃO dá para identificar o pago por um termo na UTM
+    // Source — o tráfego pago chega com a macro quebrada `{{TRILHA_17.08}}`, com o
+    // nome da campanha ("...| WEBINAR_TRILHA | 02") ou com `{{campaign.name}}`.
+    // O que é constante é o ORGÂNICO: source CONTEUDO (LP /webinar-integracao/organico/,
+    // medium GRUPOS / GRUPOS_WHATSAPP). Então invertemos o critério: é ADS tudo que
+    // tem UTM Source preenchida e NÃO está na lista de origens não-pagas.
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ['CONTEUDO', 'EMAIL', 'ORGANIC'],
+    // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign própria
+    // desta turma (WEBINAR_TRILHA_INTEGRACAO_17_AGO). Sem corte de data: a captação
+    // do 17/08 começou em 31/07, sobreposta à do 03/08 — quem separa é a utm.
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    pesquisaUtmMatch: 'WEBINAR_TRILHA_INTEGRACAO_17_AGO',
+    // Meta: as MESMAS campanhas WEBINAR_TRILHA do 20/07 e do 03/08 (a "LP01" segue
+    // ativa e as novas 02–07 nasceram em 31/07, todas com WEBINAR_TRILHA no nome) —
+    // a separação é só por DATA: o 03/08 fecha em 03/08 e o 17/08 conta de 04/08.
+    metaDesde: '2026-08-04',
+    metaAte: null,
+    metaMatch: 'WEBINAR_TRILHA',
+    // Release dedicada "Webinar: Trilha de Integração (17/08)". Modo campaign:
+    // entradas = adds, saídas = removes por dia. Sem corte (release só desta edição).
+    sendflowRelease: 'DFCx0CudRVYGjU0UJHpN',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Webinar 17/08 (futuro): da data do webinar até a véspera do próximo (24/08).
+    diagDesde: '2026-08-17',
+    diagAte: '2026-08-23',
   },
 };
 

@@ -56,9 +56,13 @@ export default async function handler(req, res) {
     if (iEmail === -1) return res.status(500).json({ error: 'Coluna Email não encontrada' });
 
     // Como identificar "Inscritos ADS" nesta edição. Padrão (webinar IA): a coluna
-    // UTM Source contém "WEBINAR_IA". Edição Trilha: UTM Medium == "paid".
+    // UTM Source contém "WEBINAR_IA". Edições onde o valor do tráfego pago varia
+    // demais (macros quebradas, nomes de campanha diferentes) usam o critério
+    // INVERSO: `inscritosAdsExclude` lista as origens NÃO pagas (orgânico, e-mail) e
+    // vale tudo que estiver preenchido e fora dessa lista.
     const adsField = ed.inscritosAdsField || 'source'; // 'source' | 'medium'
     const adsMatch = (ed.inscritosAdsMatch || 'WEBINAR_IA').toUpperCase();
+    const adsExclude = (ed.inscritosAdsExclude || []).map((s) => s.toUpperCase());
     const iAds = adsField === 'medium' ? iMed : iSrc;
 
     // Dedup por e-mail (só inscritos a partir do CUTOFF), guardando a data de
@@ -81,9 +85,15 @@ export default async function handler(req, res) {
 
     const total = firstByEmail.size;
 
-    // Inscritos ADS = veio de campanha do Meta. IA: UTM Source contém "WEBINAR_IA".
-    // Trilha: UTM Medium == "paid". Exclui conteúdo/e-mail/orgânico automaticamente.
-    const isAds = (v) => v.toUpperCase().includes(adsMatch);
+    // Inscritos ADS = veio de campanha do Meta. Por inclusão (IA: UTM Source contém
+    // "WEBINAR_IA") ou, quando há `inscritosAdsExclude`, por exclusão das origens
+    // não pagas — nesse modo a UTM precisa estar preenchida (linha sem UTM não conta).
+    const isAds = adsExclude.length
+      ? (v) => {
+          const s = v.trim().toUpperCase();
+          return !!s && !adsExclude.some((term) => s.includes(term));
+        }
+      : (v) => v.toUpperCase().includes(adsMatch);
 
     // Novos únicos por dia (soma = total) + acumulado, para o filtro de tempo.
     const byDay = {};
