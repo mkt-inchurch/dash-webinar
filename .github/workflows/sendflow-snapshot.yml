@@ -14,8 +14,17 @@ name: Sendflow snapshot
 
 on:
   schedule:
-    - cron: '7 * * * *' # de hora em hora (minuto 7, para fugir do pico do :00)
-  workflow_dispatch: # permite rodar na hora (ex.: ao criar uma edição nova)
+    - cron: '7 * * * *' # de hora em hora (o GitHub atrasa crons sob carga)
+  workflow_dispatch: # permite rodar na hora, pelo botão "Run workflow"
+  push:
+    # Regenera o snapshot na hora quando a config de edições ou a própria coleta
+    # mudam — ex.: ao criar uma edição nova, o card não espera o próximo cron.
+    branches: [main]
+    paths:
+      - api/_editions.js
+      - api/_sendflow.js
+      - scripts/sendflow-snapshot.mjs
+      - .github/workflows/sendflow-snapshot.yml
 
 # Só um snapshot por vez; se um atrasar, o próximo não concorre pelo mesmo arquivo.
 concurrency:
