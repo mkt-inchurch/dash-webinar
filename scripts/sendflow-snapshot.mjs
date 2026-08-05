@@ -43,10 +43,15 @@ console.log(`${keys.length} chave(s) recebida(s) do secret.`);
 // diferentes) — busca o analytics uma vez por release e reaproveita.
 const analyticsCache = new Map();
 
+// Quantas requisições este run fez à SendAPI. É a métrica que o desenho todo existe
+// para manter baixa (o bloqueio de 24h vem de volume), então vai no resumo do job.
+let reqs = 0;
+
 async function fetchAnalytics(releaseId) {
   if (analyticsCache.has(releaseId)) return analyticsCache.get(releaseId);
   let last = '';
   for (const k of keys) {
+    reqs++;
     const r = await fetch(`${API_BASE}/releases/${releaseId}/analytics`, { headers: sfHeaders(k) });
     if (r.ok) {
       const json = await r.json();
@@ -82,6 +87,7 @@ for (const ed of Object.values(EDITIONS)) {
   }
   let grupos = null;
   if (ed.sendflowMode !== 'campaign' && ed.sendflowGroup) {
+    reqs++;
     const g = await fetch(`${API_BASE}/releases/${ed.sendflowRelease}/groups`, { headers: sfHeaders(res.token) });
     if (g.ok) grupos = await g.json();
   }
@@ -105,4 +111,4 @@ if (!total) {
 }
 
 writeFileSync(OUT, JSON.stringify({ geradoEm: new Date().toISOString(), edicoes, erros }, null, 2) + '\n');
-console.log(`\n${OUT}: ${total} edição(ões), ${Object.keys(erros).length} erro(s).`);
+console.log(`\n${OUT}: ${total} edição(ões), ${Object.keys(erros).length} erro(s), ${reqs} requisição(ões) à SendAPI.`);
