@@ -93,7 +93,14 @@ for (const ed of Object.values(EDITIONS)) {
 const total = Object.keys(edicoes).length;
 if (!total) {
   const causa = Object.values(erros)[0] || 'sem resposta da SendAPI';
-  anota(`Nenhuma edição coletada com ${keys.length} chave(s) — snapshot preservado. SendAPI: ${causa}`);
+  // 401 = a chave chegou mas a SendAPI não a reconhece (valor errado/revogado); o
+  // painel do Sendflow mostra as chaves MASCARADAS, então copiar de lá não funciona.
+  const dica = causa.startsWith('401')
+    ? ' → chave inválida: copie o valor completo (o painel do Sendflow mostra mascarado; a env var SENDFLOW_API_KEY da Vercel tem o valor bom) e atualize o secret.'
+    : causa.includes('api-key-blocked')
+      ? ' → conta bloqueada por rate limit; o próximo run pega sozinho após a liberação.'
+      : '';
+  anota(`Nenhuma edição coletada com ${keys.length} chave(s) — snapshot preservado. SendAPI: ${causa}${dica}`);
   process.exit(1);
 }
 
