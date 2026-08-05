@@ -23,11 +23,21 @@ const DELAY_MS = 3000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Anota o motivo da falha no resumo do run (visível na página do Actions SEM login,
+// ao contrário dos logs). Nunca receba aqui o valor de uma chave — só contagens,
+// status HTTP e códigos de erro da SendAPI.
+const anota = (msg) => console.log(`::error title=Sendflow snapshot::${msg}`);
+
 const keys = getKeys();
 if (!keys.length) {
-  console.error('Nenhuma chave configurada (secret SENDFLOW_API_KEY).');
+  anota(
+    'Nenhuma chave chegou ao job. Confira em Settings → Secrets and variables → ' +
+      '**Actions** (aba "Secrets", não "Variables"; secret de repositório, não de ' +
+      'Environment/Dependabot) se existe SENDFLOW_API_KEY.',
+  );
   process.exit(1);
 }
+console.log(`${keys.length} chave(s) recebida(s) do secret.`);
 
 // Uma release pode ser compartilhada por mais de uma edição (janelas de data
 // diferentes) — busca o analytics uma vez por release e reaproveita.
@@ -82,7 +92,8 @@ for (const ed of Object.values(EDITIONS)) {
 
 const total = Object.keys(edicoes).length;
 if (!total) {
-  console.error('Nenhuma edição coletada — snapshot NÃO foi sobrescrito.');
+  const causa = Object.values(erros)[0] || 'sem resposta da SendAPI';
+  anota(`Nenhuma edição coletada com ${keys.length} chave(s) — snapshot preservado. SendAPI: ${causa}`);
   process.exit(1);
 }
 
