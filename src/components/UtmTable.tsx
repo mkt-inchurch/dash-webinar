@@ -14,6 +14,8 @@ interface UtmResp {
   rows: UtmRow[];
   melhor?: { nome: string; pMQL: number; total: number } | null;
   pior?: { nome: string; pMQL: number; total: number } | null;
+  naoClassificados?: number;
+  clientes?: number;
 }
 
 const DIMS = [
@@ -34,7 +36,7 @@ const COLS: { key: SortKey; label: string; align: 'left' | 'right' }[] = [
   { key: 'pDESQ', label: '% DESQ', align: 'right' },
 ];
 
-export const UtmTable: FC<{ edition: string }> = ({ edition }) => {
+export const UtmTable: FC<{ edition: string; totalPesquisas?: number }> = ({ edition, totalPesquisas }) => {
   const [dim, setDim] = useState('utm_campaign');
   const [resp, setResp] = useState<UtmResp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,6 +151,20 @@ export const UtmTable: FC<{ edition: string }> = ({ edition }) => {
               </tbody>
             </table>
           </div>
+
+          {/* A tabela só conta P1–P4 e DESQ. Sem esta linha, a diferença para o card
+              "Total de Pesquisas" (até 192 leads na edição de 15/06) ficava invisível. */}
+          {!!(resp?.naoClassificados || resp?.clientes) && (
+            <p className="mt-4 pt-3 border-t border-bg-card-border text-xs text-fg-subtle">
+              Fora da tabela:{' '}
+              {!!resp?.naoClassificados && (
+                <span className="text-yellow-500 font-medium">{resp.naoClassificados} sem “Filtro de Leads” preenchido</span>
+              )}
+              {!!resp?.naoClassificados && !!resp?.clientes && ' · '}
+              {!!resp?.clientes && <span>{resp.clientes} marcados como Cliente</span>}
+              {!!totalPesquisas && <> · o card “Total de Pesquisas” ({totalPesquisas}) inclui esses leads.</>}
+            </p>
+          )}
 
           {(resp?.melhor || resp?.pior) && (
             <div className="flex flex-col sm:flex-row sm:items-center gap-x-6 gap-y-1 mt-4 pt-3 border-t border-bg-card-border text-xs">

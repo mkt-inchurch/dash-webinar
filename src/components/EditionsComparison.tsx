@@ -76,7 +76,7 @@ function bestIndex(values: number[], better: Better): number {
 const Card: FC<{ title: string; children: ReactNode }> = ({ title, children }) => (
   <div className="border border-bg-card-border bg-bg-card rounded-2xl p-5">
     <h3 className="text-sm font-semibold text-fg mb-4">{title}</h3>
-    <div className="w-full h-[180px]">
+    <div className="w-full h-[210px]">
       <ResponsiveContainer width="100%" height="100%">{children as any}</ResponsiveContainer>
     </div>
   </div>
@@ -124,9 +124,20 @@ export const EditionsComparison: FC = () => {
           const data = eds.map((e) => ({ name: shortLabel(e.label), value: c.get(e.data) }));
           return (
             <Card key={c.key} title={c.label}>
-              <BarChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+              <BarChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 18 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={p.grid} vertical={false} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={AXIS} />
+                {/* interval={0} força TODAS as edições no eixo: no padrão o recharts
+                    descartava 7 dos 9 rótulos e não dava para saber qual barra era qual. */}
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ ...AXIS, fontSize: 9 }}
+                  interval={0}
+                  angle={-40}
+                  textAnchor="end"
+                  height={44}
+                />
                 <YAxis axisLine={false} tickLine={false} tick={AXIS} width={52} tickFormatter={(v) => formatCompact(v)} />
                 <Tooltip {...tip} formatter={(v: number) => [c.fmt(v), c.label]} />
                 <Bar dataKey="value" radius={[5, 5, 0, 0]} maxBarSize={56} isAnimationActive={false}>

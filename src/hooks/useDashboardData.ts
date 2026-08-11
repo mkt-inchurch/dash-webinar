@@ -123,6 +123,11 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed
     const meta = await res.json();
     if (meta && typeof meta.investimentoTrafego === 'number' && typeof meta.leadsMeta === 'number') {
       if (Array.isArray(meta.porDia)) series.meta = meta.porDia;
+      // A API respondeu, mas nenhuma campanha casou com o filtro da edição: os cards
+      // do Meta ficam zerados por CONFIG, não por indisponibilidade. Sem este aviso o
+      // painel mostrava "R$ 0,00" como se fosse o resultado real (era o caso do 24/08,
+      // que estava com R$ 6.570 de mídia rodando fora do filtro).
+      if (meta.semCampanhas) unavailable.push('meta-sem-campanhas');
       return {
         ...base,
         investimentoTrafego: meta.investimentoTrafego,
@@ -131,6 +136,8 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed
         ...(typeof meta.alcance === 'number' ? { alcance: meta.alcance } : {}),
         ...(typeof meta.frequencia === 'number' ? { frequencia: meta.frequencia } : {}),
         ...(Array.isArray(meta.campanhas) ? { campanhas: meta.campanhas } : {}),
+        alcanceDedup: !!meta.alcanceDedup,
+        semCampanhas: !!meta.semCampanhas,
       };
     }
     return fail();

@@ -4,7 +4,7 @@
 // (P1–P4 = MQL) e Desqualificado (DESQ). "Cliente" fica fora do total.
 // Processa no servidor: só contagens saem daqui, nada de PII.
 
-import { getEdition, brToTs, toBoundTs } from './_editions.js';
+import { getEdition, brToTs, toBoundTs, pesquisaUtmFilters } from './_editions.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
 // Aba única "Pesquisa Geral" via /export (imune a filtros; o gviz respeita filtros
@@ -58,9 +58,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Colunas e-mail/Filtro de Leads/UTM não encontradas' });
     }
     // A planilha mistura webinars; a edição separa pela utm_campaign (match/exclude).
-    const utmMatch = (ed.pesquisaUtmMatch || '').toUpperCase();
-    const utmExclude = (ed.pesquisaUtmExclude || '').toUpperCase();
-    const iUtm = (utmMatch || utmExclude) ? header.indexOf('utm_campaign') : -1;
+    const { match: utmMatch, excludes: utmExcludes, usaUtm } = pesquisaUtmFilters(ed);
+    const iUtm = usaUtm ? header.indexOf('utm_campaign') : -1;
 
     // Dedup por e-mail (primeiro registro na janela), guardando UTM + classificação.
     const firstByEmail = new Map();
@@ -69,7 +68,7 @@ export default async function handler(req, res) {
       if (!email) continue;
       const utmVal = iUtm === -1 ? '' : String(rows[i][iUtm] || '').toUpperCase();
       if (utmMatch && !utmVal.includes(utmMatch)) continue;
-      if (utmExclude && utmVal.includes(utmExclude)) continue;
+      if (utmExcludes.some((t) => utmVal.includes(t))) continue;
       const ts = iDate === -1 ? null : brToTs(rows[i][iDate]);
       if (!ts) continue;
       if (DESDE && ts < DESDE) continue;
@@ -81,8 +80,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // Agrupa por dimensão.
+    // Agrupa por dimensão. "Cliente" e vazios ficam de fora do total das linhas,
+    // mas são contados à parte (`naoClassificados`) — sem isso, a soma da tabela
+    // fica menor que o card "Total de Pesquisas" e não há como saber o porquê.
     const g = new Map();
+    let clientes = 0, semFiltro = 0;
     for (const { dimVal, filtro } of firstByEmail.values()) {
       if (!g.has(dimVal)) g.set(dimVal, { nome: dimVal, p1: 0, p2: 0, p3: 0, p4: 0, desq: 0 });
       const b = g.get(dimVal);
@@ -91,7 +93,8 @@ export default async function handler(req, res) {
       else if (filtro === 'P3') b.p3++;
       else if (filtro === 'P4') b.p4++;
       else if (filtro.includes('DESQ')) b.desq++;
-      // "Cliente" e vazios ficam de fora do total.
+      else if (filtro.includes('CLIENTE')) clientes++;
+      else semFiltro++;
     }
 
     let list = [...g.values()].map((b) => {
@@ -109,19 +112,30 @@ export default async function handler(req, res) {
     list.sort((a, b) => b.total - a.total);
     const rowsOut = list.slice(0, TOP_N);
 
-    // Melhor/pior qualidade entre os de volume relevante (>= MIN_VOL).
-    let elegiveis = list.filter((b) => b.total >= MIN_VOL);
-    if (elegiveis.length < 2) elegiveis = rowsOut; // fallback: usa o top
+    // Melhor/pior qualidade entre os de volume relevante (>= MIN_VOL). Com menos de
+    // duas linhas elegíveis não existe comparação: antes o fallback caía no top e a
+    // MESMA campanha aparecia como "melhor qualidade" e "pior" ao mesmo tempo (era o
+    // caso de 5 das 9 edições, que só têm uma utm_campaign).
+    const elegiveis = list.filter((b) => b.total >= MIN_VOL);
     let melhor = null, pior = null;
-    for (const b of elegiveis) {
-      if (!melhor || b.pMQL > melhor.pMQL) melhor = b;
-      if (!pior || b.pMQL < pior.pMQL) pior = b;
+    if (elegiveis.length >= 2) {
+      for (const b of elegiveis) {
+        if (!melhor || b.pMQL > melhor.pMQL) melhor = b;
+        if (!pior || b.pMQL < pior.pMQL) pior = b;
+      }
+      // Empate no % de MQL: não existe "melhor" nem "pior" (era assim que a mesma
+      // utm aparecia nos dois rótulos mesmo havendo 2+ linhas elegíveis).
+      if (melhor === pior || melhor.pMQL === pior.pMQL) { melhor = null; pior = null; }
     }
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json({
       dim,
       rows: rowsOut,
+      // Leads da janela que não entram na tabela: sem "Filtro de Leads" preenchido
+      // (backlog de classificação) e os marcados como "Cliente".
+      naoClassificados: semFiltro,
+      clientes,
       melhor: melhor && { nome: melhor.nome, pMQL: melhor.pMQL, total: melhor.total },
       pior: pior && { nome: pior.nome, pMQL: pior.pMQL, total: pior.total },
     });

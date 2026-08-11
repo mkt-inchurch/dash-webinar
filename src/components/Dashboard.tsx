@@ -32,6 +32,7 @@ const TRILHA_EDITIONS = new Set(['webinar-20-07', 'webinar-03-08', 'webinar-17-0
 // Rótulos amigáveis das fontes de dados (para o aviso de indisponibilidade).
 const SOURCE_LABELS: Record<string, string> = {
   meta: 'Meta Ads',
+  'meta-sem-campanhas': 'Meta Ads — nenhuma campanha casou com o filtro desta edição (revise `metaMatch` em api/_editions.js)',
   sendflow: 'Entradas no Grupo (Sendflow)',
   inscritos: 'Inscritos (planilha)',
   pesquisas: 'Pesquisas (planilha)',
@@ -86,9 +87,12 @@ export function Dashboard() {
     const ok = g.higherBetter ? value >= g.goal : value <= g.goal;
     const Icon = ok ? TrendingUp : TrendingDown;
     return (
-      <span className={cn('flex items-center gap-1 text-sm font-semibold', ok ? 'text-in-green' : 'text-red-500')} title="Meta de referência (exemplo)">
+      <span
+        className={cn('flex items-center gap-1 text-sm font-semibold', ok ? 'text-in-green' : 'text-red-500')}
+        title={`Meta de REFERÊNCIA (valor provisório de mercado, definido em src/lib/goals.ts): ${g.goal}`}
+      >
         <Icon className="w-4 h-4" />
-        {formatPercent(pctv)} <span className="font-normal text-fg-subtle">da meta</span>
+        {formatPercent(pctv)} <span className="font-normal text-fg-subtle">da meta ref.</span>
       </span>
     );
   };
@@ -108,17 +112,20 @@ export function Dashboard() {
     );
   };
 
-  // Rodapé "% anterior" dos cards de funil: Inscritos = % da meta (2.000);
-  // ADS/Grupo/Pesquisas/ICPs = % sobre o total de inscritos. Ícone verde + só a %.
+  // Rodapé dos cards de funil. ATENÇÃO: são duas bases diferentes — Inscritos é
+  // % da META de referência; os demais são % SOBRE OS INSCRITOS. Antes as duas
+  // apareciam iguais (só a % com uma seta verde de alta), o que fazia "29,5%" no
+  // card de inscritos ser lido como crescimento. Agora cada uma leva o rótulo da
+  // sua base e o ícone de tendência sai (não é variação, é proporção).
   const pctMeta = data.inscritos / META_INSCRITOS;
   const pctAds = data.inscritos && data.inscritosAds != null ? data.inscritosAds / data.inscritos : 0;
   const pctGrupo = data.inscritos ? data.entradasGrupo / data.inscritos : 0;
   const pctPesquisas = data.inscritos ? data.pesquisas / data.inscritos : 0;
   const pctIcps = data.inscritos ? data.icps / data.inscritos : 0;
-  const pctFooter = (v: number) => (
-    <span className="flex items-center gap-1 text-sm font-semibold text-in-green">
-      <TrendingUp className="w-4 h-4" />
-      {formatPercent(v)}
+  const pctFooter = (v: number, base: string, title?: string) => (
+    <span className="flex items-center gap-1 text-sm font-semibold text-in-green" title={title}>
+      <Percent className="w-3.5 h-3.5" />
+      {formatPercent(v)} <span className="font-normal text-fg-subtle">{base}</span>
     </span>
   );
 
@@ -270,10 +277,10 @@ export function Dashboard() {
         {/* Filtro temporal */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border border-bg-card-border bg-bg-card rounded-xl px-4 py-4">
           <DateFilter range={activeRange} full={full} onChange={setRange} />
-          <span className="text-xs text-fg-subtle lg:text-right lg:max-w-[240px]">
+          <span className="text-xs text-fg-subtle lg:text-right lg:max-w-[260px]">
             {isFullRange(activeRange, full)
-              ? 'Todo o período do webinar (desde 19/06)'
-              : 'Período selecionado · Alcance, Frequência e CPL Real não filtram por data'}
+              ? `Todo o período desta edição (${ddmm(full.start)} a ${ddmm(full.end)})`
+              : 'Período selecionado · Alcance e Frequência não filtram por data (o reach do Meta não é somável por dia)'}
           </span>
         </div>
 
@@ -295,12 +302,18 @@ export function Dashboard() {
         {/* KPIs — Funil do Webinar */}
         <div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPICard title="Total de Inscritos" value={formatNumber(data.inscritos)} icon={<Users className="w-5 h-5" />} footer={pctFooter(pctMeta)} delay={0.05} />
+            <KPICard
+              title="Total de Inscritos"
+              value={formatNumber(data.inscritos)}
+              icon={<Users className="w-5 h-5" />}
+              footer={pctFooter(pctMeta, 'da meta ref.', `Meta de referência: ${formatNumber(META_INSCRITOS)} inscritos (provisória, src/lib/constants.ts)`)}
+              delay={0.05}
+            />
             <KPICard
               title="Inscritos ADS"
               value={formatNumber(data.inscritosAds ?? 0)}
               icon={<Megaphone className="w-5 h-5" />}
-              footer={data.inscritosAds != null ? pctFooter(pctAds) : undefined}
+              footer={data.inscritosAds != null ? pctFooter(pctAds, 'dos inscritos') : undefined}
               {...clickProps('inscritosAds')}
               delay={0.08}
             />
@@ -316,18 +329,20 @@ export function Dashboard() {
                 ) : undefined
               }
               icon={<UserPlus className="w-5 h-5" />}
-              footer={pctFooter(pctGrupo)}
+              footer={pctFooter(pctGrupo, 'dos inscritos')}
               {...clickProps('entradasGrupo')}
               delay={0.11}
             />
-            <KPICard title="Total de Pesquisas" value={formatNumber(data.pesquisas)} icon={<Search className="w-5 h-5" />} footer={pctFooter(pctPesquisas)} {...clickProps('pesquisas')} delay={0.14} />
-            <KPICard title="Total de ICPs" value={formatNumber(data.icps)} icon={<Target className="w-5 h-5" />} footer={pctFooter(pctIcps)} {...clickProps('icps')} delay={0.17} />
+            <KPICard title="Total de Pesquisas" value={formatNumber(data.pesquisas)} icon={<Search className="w-5 h-5" />} footer={pctFooter(pctPesquisas, 'dos inscritos')} {...clickProps('pesquisas')} delay={0.14} />
+            <KPICard title="Total de ICPs" value={formatNumber(data.icps)} icon={<Target className="w-5 h-5" />} footer={pctFooter(pctIcps, 'dos inscritos')} {...clickProps('icps')} delay={0.17} />
             <KPICard title="Diagnósticos" value={formatNumber(data.diagnosticos)} icon={<Stethoscope className="w-5 h-5" />} highlight {...clickProps('diagnosticos')} delay={0.2} />
             <KPICard
               title="CPA / CPL (Real)"
               value={formatCurrency(data.cplReal)}
               icon={<TrendingDown className="w-5 h-5" />}
-              highlight={data.cplReal <= data.cplMeta}
+              // Só destaca como "bom" quando existe CPA E existe CPL do Meta para
+              // comparar: com os dois zerados (edição sem mídia) o card ficava verde.
+              highlight={data.cplReal > 0 && data.cplMeta > 0 && data.cplReal <= data.cplMeta}
               subtitle="investimento / inscritos ADS"
               delay={0.23}
             />
@@ -339,15 +354,25 @@ export function Dashboard() {
           <h2 className={sectionTitle}>Meta Ads</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <KPICard title="Gasto Total" value={formatCurrency(data.investimentoTrafego)} icon={<DollarSign className="w-5 h-5" />} delay={0.05} />
-            <KPICard title="Alcance" value={formatCompact(data.alcance ?? 0)} icon={<Users className="w-5 h-5" />} subtitle="Meta Accounts" footer={goalFooter('alcance', data.alcance ?? 0)} delay={0.08} />
+            <KPICard
+              title="Alcance"
+              value={formatCompact(data.alcance ?? 0)}
+              icon={<Users className="w-5 h-5" />}
+              // Quando a consulta deduplicada da Meta falha, o valor é a SOMA do
+              // reach por campanha — que conta 2x quem viu mais de uma campanha.
+              // O subtítulo diz qual dos dois está na tela.
+              subtitle={data.alcanceDedup === false ? 'soma por campanha (aprox.)' : 'contas únicas (Meta)'}
+              footer={goalFooter('alcance', data.alcance ?? 0)}
+              delay={0.08}
+            />
             <KPICard title="Impressões" value={formatCompact(data.impressoes ?? 0)} icon={<Eye className="w-5 h-5" />} footer={goalFooter('impressoes', data.impressoes ?? 0)} {...clickProps('impressoes')} delay={0.11} />
             <KPICard title="Frequência" value={(data.frequencia ?? 0).toFixed(2)} icon={<Repeat className="w-5 h-5" />} subtitle="média" footer={benchFooter('frequencia', data.frequencia)} delay={0.14} />
             <KPICard title="LPV" value={formatCompact(data.lpv ?? 0)} icon={<FileText className="w-5 h-5" />} subtitle="landing page views" footer={goalFooter('lpv', data.lpv ?? 0)} {...clickProps('lpv')} delay={0.17} />
-            <KPICard title="Conv. Captura" value={formatPercent(data.convPagina ?? 0)} icon={<Percent className="w-5 h-5" />} subtitle="leads / LPV" footer={benchFooter('convPagina', data.convPagina)} {...clickProps('convPagina')} delay={0.26} />
+            <KPICard title="Conv. Captura" value={formatPercent(data.convPagina ?? 0)} icon={<Percent className="w-5 h-5" />} subtitle="leads Meta / LPV" footer={benchFooter('convPagina', data.convPagina)} {...clickProps('convPagina')} delay={0.26} />
             <KPICard title="CTR Link" value={formatPercent(data.ctrLink ?? 0)} icon={<BarChart3 className="w-5 h-5" />} footer={benchFooter('ctrLink', data.ctrLink)} delay={0.29} />
             <KPICard title="CPC" value={formatCurrency(data.cpc ?? 0)} icon={<MousePointerClick className="w-5 h-5" />} subtitle="por clique no link" footer={benchFooter('cpc', data.cpc)} {...clickProps('cpc')} delay={0.32} />
             <KPICard title="CPM" value={formatCurrency(data.cpm ?? 0)} icon={<Eye className="w-5 h-5" />} footer={benchFooter('cpm', data.cpm)} {...clickProps('cpm')} delay={0.35} />
-            <KPICard title="Connect Rate" value={formatPercent(data.connectRate ?? 0)} icon={<Link2 className="w-5 h-5" />} subtitle="conv / cliques link" footer={benchFooter('connectRate', data.connectRate)} {...clickProps('connectRate')} delay={0.38} />
+            <KPICard title="Connect Rate" value={formatPercent(data.connectRate ?? 0)} icon={<Link2 className="w-5 h-5" />} subtitle="LPV / cliques no link" footer={benchFooter('connectRate', data.connectRate)} {...clickProps('connectRate')} delay={0.38} />
           </div>
         </div>
 
@@ -388,12 +413,14 @@ export function Dashboard() {
         )}
 
         {/* Tabela */}
-        {data.campanhas && data.campanhas.length > 0 && <CampanhasTable campanhas={data.campanhas} />}
+        {data.campanhas && data.campanhas.length > 0 && (
+          <CampanhasTable campanhas={data.campanhas} inscritosAds={data.inscritosAds} leadsMeta={data.leadsMeta} />
+        )}
 
         {/* UTM × Prioridade */}
         <div>
           <h2 className={sectionTitle}>UTMs</h2>
-          <UtmTable edition={edition} />
+          <UtmTable edition={edition} totalPesquisas={rawData.pesquisas} />
         </div>
         </>
         )}

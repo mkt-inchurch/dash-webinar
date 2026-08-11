@@ -19,7 +19,9 @@ export interface DashboardData {
 
   // Métricas de anúncio (derivadas da série do Meta, respeitam o filtro de datas).
   impressoes?: number;   // total de impressões no período
-  alcance?: number;      // reach (soma diária — aproximado)
+  alcance?: number;      // reach do período (deduplicado quando alcanceDedup=true)
+  alcanceDedup?: boolean; // true = reach deduplicado pela Meta; false = soma por campanha
+  semCampanhas?: boolean; // nenhuma campanha casou com o metaMatch da edição
   frequencia?: number;   // impressões ÷ alcance
   lpv?: number;          // landing page views (total)
   cpm?: number;          // custo por mil impressões (R$)

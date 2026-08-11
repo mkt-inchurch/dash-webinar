@@ -6,16 +6,25 @@ import { formatCurrency, formatNumber, formatCompact, formatPercent } from '../l
 
 interface CampanhasTableProps {
   campanhas: Campanha[];
+  // Para a nota de rodapé: quanto o lead do pixel diverge da inscrição real.
+  inscritosAds?: number;
+  leadsMeta?: number;
 }
 
 const th = 'px-3 py-2 text-right font-medium text-fg-subtle whitespace-nowrap';
 const td = 'px-3 py-3 text-right text-fg whitespace-nowrap';
 
-export const CampanhasTable: FC<CampanhasTableProps> = ({ campanhas }) => {
+export const CampanhasTable: FC<CampanhasTableProps> = ({ campanhas, inscritosAds, leadsMeta }) => {
   const [q, setQ] = useState('');
   if (!campanhas.length) return null;
 
   const rows = campanhas.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()));
+
+  // "Leads (Meta)" é o evento do pixel, não a inscrição da planilha — nas edições
+  // auditadas ele fica de 7% a 114% acima. Como o CPL desta tabela usa esse número,
+  // ele é sempre OTIMISTA frente ao CPA real do card do topo. A nota mostra o fator.
+  const temComparacao = !!(leadsMeta && leadsMeta > 0 && inscritosAds && inscritosAds > 0);
+  const fator = temComparacao ? (leadsMeta as number) / (inscritosAds as number) : 0;
 
   return (
     <motion.div
@@ -51,8 +60,8 @@ export const CampanhasTable: FC<CampanhasTableProps> = ({ campanhas }) => {
               <th className={th}>CTR Link</th>
               <th className={th}>CPM</th>
               <th className={th}>CPC</th>
-              <th className={th}>Conversões</th>
-              <th className={th}>CPL</th>
+              <th className={th} title="Evento 'lead' do pixel do Meta — não é a inscrição da planilha">Leads (Meta)</th>
+              <th className={th} title="Gasto ÷ leads do pixel. O CPA real (por inscrito) está no card do topo">CPL (Meta)</th>
             </tr>
           </thead>
           <tbody>
@@ -75,6 +84,17 @@ export const CampanhasTable: FC<CampanhasTableProps> = ({ campanhas }) => {
           </tbody>
         </table>
       </div>
+
+      {temComparacao && (
+        <p className="text-xs text-fg-subtle mt-4 pt-3 border-t border-bg-card-border">
+          <span className="text-yellow-500 font-medium">Leia com atenção:</span>{' '}
+          “Leads (Meta)” é o evento do pixel — nesta edição são{' '}
+          <span className="text-fg font-medium">{formatNumber(leadsMeta as number)}</span> leads para{' '}
+          <span className="text-fg font-medium">{formatNumber(inscritosAds as number)}</span> inscritos de anúncio na planilha
+          {fator > 1.05 && <> ({fator.toFixed(2)}× mais)</>}. Logo, o CPL desta tabela é otimista frente ao
+          CPA real do card “CPA / CPL (Real)”, que usa a inscrição efetiva.
+        </p>
+      )}
     </motion.div>
   );
 };

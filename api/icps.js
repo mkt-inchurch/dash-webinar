@@ -6,7 +6,7 @@
 // ICP = P1 + P2 + P3 + P4 (leads qualificados). Dedup: mantém o PRIMEIRO registro
 // (>= 19/06) de cada e-mail.
 
-import { getEdition, brToTs, toBoundTs } from './_editions.js';
+import { getEdition, brToTs, toBoundTs, pesquisaUtmFilters } from './_editions.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
 // Aba única "Pesquisa Geral" via /export (imune a filtros; o gviz respeita filtros
@@ -54,9 +54,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Colunas e-mail/data/Filtro de Leads não encontradas' });
     }
     // A planilha mistura webinars; a edição separa pela utm_campaign (match/exclude).
-    const utmMatch = (ed.pesquisaUtmMatch || '').toUpperCase();
-    const utmExclude = (ed.pesquisaUtmExclude || '').toUpperCase();
-    const iUtm = (utmMatch || utmExclude) ? header.indexOf('utm_campaign') : -1;
+    const { match: utmMatch, excludes: utmExcludes, usaUtm } = pesquisaUtmFilters(ed);
+    const iUtm = usaUtm ? header.indexOf('utm_campaign') : -1;
 
     // Dedup por e-mail: mantém o PRIMEIRO registro (>= CUTOFF) de cada pessoa e usa
     // a classificação "Filtro de Leads" dele.
@@ -67,7 +66,7 @@ export default async function handler(req, res) {
       if (!email) continue;
       const utmVal = iUtm === -1 ? '' : String(row[iUtm] || '').toUpperCase();
       if (utmMatch && !utmVal.includes(utmMatch)) continue;
-      if (utmExclude && utmVal.includes(utmExclude)) continue;
+      if (utmExcludes.some((t) => utmVal.includes(t))) continue;
       const ts = brToTs(row[iDate]);
       if (!ts) continue;
       if (DESDE && ts < DESDE) continue;

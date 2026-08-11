@@ -1,0 +1,22 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dash-webinar",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "dash-webinar (com /api)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/dev-local.mjs"
+      ],
+      "port": 4178
+    }
+  ]
+}

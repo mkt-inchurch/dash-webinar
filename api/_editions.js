@@ -2,6 +2,25 @@
 // fontes (aba de inscritos, campanha do Sendflow, janelas de data do Meta/pesquisa
 // /diagnósticos). As serverless functions leem `?ed=<id>` e usam esta config.
 // Datas ISO "AAAA-MM-DD"; `ate: null` = aberto (até hoje).
+//
+// REGRA DOS DIAGNÓSTICOS (diagDesde/diagAte): a planilha de diagnósticos é ÚNICA e
+// compartilhada por todos os webinars, e a coluna utm_campaign dela NÃO separa
+// edição (os tokens 'WEBINAR_IA_26', 'WEBINAR_TRILHA_INTEGRACAO' e 'YOUTUBE'
+// atravessam meses). Só a DATA separa — e por isso a janela de cada edição vai da
+// data do webinar até a VÉSPERA DO PRÓXIMO WEBINAR EM ORDEM CRONOLÓGICA, seja ele
+// de IA, Trilha ou Igreja Digital. Encadear "até o próximo webinar do mesmo
+// produto" (o que valia antes) fazia janelas se sobreporem e o MESMO diagnóstico
+// era contado em 2, 3 ou 4 edições: o painel somava 715 diagnósticos onde existiam
+// 416. Ao criar uma edição nova, feche a janela da edição imediatamente anterior.
+//
+// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08
+
+// Tokens de utm_campaign da planilha "Pesquisa Geral" que NÃO são webinar (outros
+// funis que caem na mesma aba). As edições separadas só por DATA (15/06 e 04/07,
+// anteriores à padronização das utms) precisam excluí-los explicitamente, senão o
+// card "Total de Pesquisas" soma lead de material/calculadora como se fosse do
+// webinar.
+const OUTROS_FUNIS = ['MATERIAL_AULA_IA', 'CALCULADORA_26', 'PESQUISA_DIAGNOSTICO_26'];
 
 export const EDITIONS = {
   // 1ª edição — captação 29/05→18/06, webinar 15/06. Tudo até 18/06 23h
@@ -15,6 +34,10 @@ export const EDITIONS = {
     inscritosAte: '2026-06-18',
     pesquisaDesde: null,
     pesquisaAte: '2026-06-18 23:00',
+    // Edição anterior à padronização das utms: a maioria das respostas está com
+    // utm_campaign vazia, então a separação é por data. Só excluímos os funis que
+    // claramente não são o webinar (179 respostas de MATERIAL_AULA_IA caíam aqui).
+    pesquisaUtmExclude: OUTROS_FUNIS,
     metaDesde: '2026-05-01', // captação começou 29/05; buffer p/ pegar todo o gasto
     metaAte: '2026-06-18',
     metaMatch: 'WEBINAR_IA',
@@ -24,7 +47,11 @@ export const EDITIONS = {
     sendflowDesde: null,
     sendflowAte: '2026-06-18',
     diagDesde: null,
-    diagAte: '2026-06-18 23:00',
+    // Diagnóstico é ação PÓS-webinar: a janela vai até a véspera do próximo webinar
+    // (04/07), não até 18/06 (que é o corte da CAPTAÇÃO da edição seguinte). Com o
+    // corte antigo, os 33 diagnósticos de 19–23/06 — atrasados, da live de 15/06 —
+    // não entravam em nenhuma edição.
+    diagAte: '2026-07-03',
   },
 
   // 2ª edição — captação 19/06→03/07, webinar 04/07, diagnósticos 04–12/07.
@@ -36,6 +63,9 @@ export const EDITIONS = {
     inscritosAte: null,
     pesquisaDesde: '2026-06-19', // usado por /pesquisas e /icps (mesma planilha)
     pesquisaAte: '2026-07-03',
+    // Ainda sem utm padronizada por edição: separação por data + exclusão dos
+    // outros funis (58 respostas de MATERIAL_AULA_IA caíam nesta janela).
+    pesquisaUtmExclude: OUTROS_FUNIS,
     metaDesde: '2026-06-19',
     metaAte: '2026-07-03', // fecha antes da nova captação p/ não sobrepor
     metaMatch: 'WEBINAR_IA',
@@ -83,9 +113,11 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign', // entradas = adds, saídas = removes por dia
     sendflowDesde: '2026-07-10',
-    // Diagnósticos do 20/07: da data do webinar até a véspera do próximo (03/08).
+    // Diagnósticos do 20/07: da data do webinar até a véspera do PRÓXIMO WEBINAR em
+    // ordem cronológica — 27/07 (IA), não 03/08 (a próxima Trilha). Ia até 02/08 e
+    // dividia 17 diagnósticos com a janela do 27/07.
     diagDesde: '2026-07-20',
-    diagAte: '2026-08-02',
+    diagAte: '2026-07-26',
   },
 
   // 6ª edição — Trilha da Integração (03/08): mesma trilha do 20/07 (Pedro Franco),
@@ -154,8 +186,11 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign', // campanha inteira (entradas e saídas por dia)
     sendflowDesde: '2026-07-04',
+    // Diagnósticos do 13/07: até a véspera do próximo webinar (Trilha 20/07). A
+    // janela era ABERTA (null) e engolia inteiras as edições 20/07, 27/07, 03/08 e
+    // 10/08 — o card mostrava 247 diagnósticos, dos quais só 24 eram desta edição.
     diagDesde: '2026-07-13',
-    diagAte: null,
+    diagAte: '2026-07-19',
   },
 
   // 5ª edição — webinar IA de 27/07. Mesmas fontes das edições de IA, com aba de
@@ -188,11 +223,11 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 27/07: da data do webinar até a véspera do próximo webinar IA (10/08).
-    // Antes era aberto (null) — o que fazia o 27/07 ABSORVER os diagnósticos do 10/08
-    // (e do 03/08), a mesma dupla contagem já observada no 13/07 (que segue aberto).
+    // Webinar 27/07: até a véspera do PRÓXIMO WEBINAR em ordem cronológica — Trilha
+    // 03/08, não o próximo IA (10/08). Fechando só em 09/08, esta janela continha a
+    // janela inteira do 03/08: 59 dos 81 diagnósticos exibidos aqui eram do 03/08.
     diagDesde: '2026-07-27',
-    diagAte: '2026-08-09',
+    diagAte: '2026-08-02',
   },
 
   // 7ª edição — Webinar IA 10/08. As 4 fontes ligadas aos dados reais (28/07).
@@ -230,10 +265,11 @@ export const EDITIONS = {
   },
 
   // 8ª edição — Webinar Igreja Digital 24/08 (Levak × inChurch). Webinar DIFERENTE
-  // dos de IA/Trilha. Inscritos e Sendflow ligados às fontes reais (28/07). FALTAM
-  // (campos "TODO", pendentes das campanhas do Meta que ainda não foram vinculadas):
-  // metaMatch, inscritosAdsMatch e pesquisaUtmMatch — enquanto placeholder, o card
-  // Meta fica "indisponível" e Inscritos ADS / Pesquisas / ICPs ficam 0.
+  // dos de IA/Trilha. Fontes 100% vinculadas em 11/08: as campanhas do Meta já
+  // existiam desde 02/08 ("WEBINAR_IGREJA_DIGITAL | 24-08 - PAGINA 01/02/01 ABO")
+  // mas os três campos abaixo ainda estavam com o placeholder "IGREJA_DIGITAL__TODO",
+  // o que deixava R$ 6.570 de mídia e ~899 leads FORA do painel (card Meta zerado,
+  // Inscritos ADS 0 de 635, Pesquisas e ICPs 0).
   'webinar-24-08': {
     id: 'webinar-24-08',
     label: 'Webinar Igreja Digital 24/08',
@@ -243,24 +279,23 @@ export const EDITIONS = {
     inscritosGid: 0,
     inscritosDesde: null,
     inscritosAte: null,
-    // TODO(ADS): "Inscritos ADS" = tráfego pago, identificado pela UTM Source conter
-    // o nome da campanha. Depende das campanhas do Meta (ainda não vinculadas). O
-    // placeholder NÃO casa nada de propósito → ADS fica 0 e não conta por engano
-    // linhas de outras campanhas (ex.: a única inscrição atual veio de WEBINAR_IA).
-    // Ao vincular, trocar para o termo real (o MESMO usado em metaMatch).
+    // "Inscritos ADS": o tráfego pago chega com a UTM Source "{{IGREJA_DIGITAL}}"
+    // (macro com chaves, mas constante — 456 linhas). O orgânico vem como CONTEUDO
+    // (grupos) e hs_email; por isso o match por inclusão em "IGREJA_DIGITAL" separa
+    // certo sem depender das chaves.
     inscritosAdsField: 'source',
-    inscritosAdsMatch: 'IGREJA_DIGITAL__TODO',
-    // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign.
+    inscritosAdsMatch: 'IGREJA_DIGITAL',
+    // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign própria
+    // (WEBINAR_IGREJA_DIGITAL, desde 31/07). Não colide com nenhuma outra edição.
     pesquisaDesde: null,
     pesquisaAte: null,
-    // TODO(pesquisa): pôr a utm_campaign real do Igreja Digital quando começarem as
-    // respostas (ainda não há token na planilha). Placeholder não casa nada → 0.
-    pesquisaUtmMatch: 'IGREJA_DIGITAL__TODO',
-    // TODO(meta): pôr o termo único do nome da campanha do Igreja Digital (ainda não
-    // vinculada). Placeholder não casa campanha → card Meta "indisponível"/0.
+    pesquisaUtmMatch: 'WEBINAR_IGREJA_DIGITAL',
+    // Meta: campanhas "[...] | WEBINAR_IGREJA_DIGITAL | 24-08 - PAGINA ...", no ar
+    // desde 02/08. O termo é exclusivo deste webinar (IA e Trilha não o contêm),
+    // então a separação é só pelo nome — a janela é aberta.
     metaDesde: '2026-07-28',
     metaAte: null,
-    metaMatch: 'IGREJA_DIGITAL__TODO',
+    metaMatch: 'WEBINAR_IGREJA_DIGITAL',
     // Release dedicada "Webinar: Igreja Digital" (grupo Igreja Digital). Modo
     // campaign: entradas = adds, saídas = removes por dia. Sem corte (release só desta edição).
     sendflowRelease: 'GOyYgAfg2V3AvG25qZ49',
@@ -334,6 +369,19 @@ export function toBoundTs(s, isEnd) {
   if (s.length <= 10) return isEnd ? `${s}T23:59:59` : `${s}T00:00:00`;
   const norm = s.replace(' ', 'T');
   return norm.length === 16 ? `${norm}:00` : norm;
+}
+
+// Filtros de utm_campaign da planilha "Pesquisa Geral" usados por /pesquisas,
+// /icps e /utms. `pesquisaUtmExclude` aceita string OU lista de strings (edições
+// antigas precisam excluir vários funis de uma vez). Tudo em CAIXA ALTA porque a
+// comparação é feita com `includes` sobre o valor em caixa alta.
+export function pesquisaUtmFilters(ed) {
+  const match = String(ed.pesquisaUtmMatch || '').toUpperCase();
+  const raw = ed.pesquisaUtmExclude;
+  const excludes = (Array.isArray(raw) ? raw : raw ? [raw] : [])
+    .map((s) => String(s || '').toUpperCase())
+    .filter(Boolean);
+  return { match, excludes, usaUtm: !!(match || excludes.length) };
 }
 
 export function getEdition(idOrReq) {

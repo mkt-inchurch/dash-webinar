@@ -37,6 +37,48 @@ async function fetchInsights(token, daily, since, until, match) {
   return all.filter((row) => String(row.campaign_name || '').includes(match));
 }
 
+// Alcance REAL do conjunto de campanhas da edição: uma consulta no nível da CONTA
+// filtrando por nome de campanha, que devolve o reach já deduplicado (uma pessoa
+// impactada por 3 campanhas conta 1). Antes o painel somava o reach campanha a
+// campanha, o que inflava o alcance e, por consequência, DEFLACIONAVA a frequência
+// (impressões ÷ alcance). Se o filtro não for aceito pela Graph API, devolve null
+// e o chamador cai no comportamento antigo (soma), sinalizando isso na resposta.
+async function fetchAlcanceDedup(token, since, until, match) {
+  const params = {
+    level: 'account',
+    fields: 'spend,impressions,reach',
+    time_range: JSON.stringify({ since, until }),
+    filtering: JSON.stringify([{ field: 'campaign.name', operator: 'CONTAIN', value: match }]),
+    limit: '10',
+    access_token: token,
+  };
+  try {
+    const r = await fetch(
+      `https://graph.facebook.com/${GRAPH_VERSION}/act_${AD_ACCOUNT_ID}/insights?` + new URLSearchParams(params)
+    );
+    const j = await r.json();
+    if (j.error || !Array.isArray(j.data) || !j.data.length) return null;
+    const reach = num(j.data[0].reach);
+    const impressions = num(j.data[0].impressions);
+    const spend = parseFloat(j.data[0].spend || '0');
+    return reach > 0 ? { reach, impressions, spend } : null;
+  } catch {
+    return null;
+  }
+}
+
+// O alcance deduplicado só vale se a consulta no nível da conta tiver respeitado o
+// filtro de nome de campanha. Se a Graph API ignorasse o `filtering`, ela devolveria
+// a conta INTEIRA (outros webinars, meio de funil) e o alcance ficaria maior, não
+// menor. O gasto é a prova: no recorte certo ele bate com a soma das campanhas.
+// Também exigimos reach <= soma por campanha, que é o teto matemático da dedup.
+function dedupConfere(dedup, gastoCampanhas, somaReach) {
+  if (!dedup) return false;
+  const difGasto = Math.abs(dedup.spend - gastoCampanhas);
+  const tolerancia = Math.max(1, gastoCampanhas * 0.01); // 1% ou R$1
+  return difGasto <= tolerancia && dedup.reach <= somaReach;
+}
+
 export default async function handler(req, res) {
   const token = process.env.META_ACCESS_TOKEN;
   if (!token) {
@@ -49,9 +91,10 @@ export default async function handler(req, res) {
   const match = ed.metaMatch;
 
   try {
-    const [dailyRows, campRows] = await Promise.all([
+    const [dailyRows, campRows, dedup] = await Promise.all([
       fetchInsights(token, true, since, until, match),
       fetchInsights(token, false, since, until, match),
+      fetchAlcanceDedup(token, since, until, match),
     ]);
 
     // ---- Série diária (KPIs filtráveis + gráficos de tendência) ----
@@ -101,18 +144,29 @@ export default async function handler(req, res) {
       .filter((c) => c.spend > 0 || c.conversoes > 0)
       .sort((a, b) => b.spend - a.spend);
 
-    // Alcance/Frequência do PERÍODO TOTAL (reach não é somável por dia). Soma o
-    // reach por campanha (aproxima; ainda conta 2x quem está em >1 campanha).
-    let totalReach = 0, totalImp = 0;
-    for (const c of campanhas) { totalReach += c.alcance; totalImp += c.impressoes; }
+    // Alcance/Frequência do PERÍODO TOTAL (reach não é somável por dia).
+    // Preferência: o reach deduplicado da consulta no nível da conta. Fallback:
+    // soma do reach por campanha — que conta 2x quem foi impactado por mais de uma
+    // campanha e, por isso, vem marcado com `alcanceDedup: false` para a tela avisar.
+    let somaReach = 0, somaImp = 0, somaGasto = 0;
+    for (const c of campanhas) { somaReach += c.alcance; somaImp += c.impressoes; somaGasto += c.spend; }
+    const dedupOk = dedupConfere(dedup, somaGasto, somaReach);
+    const alcance = dedupOk ? dedup.reach : somaReach;
+    const impressoesRef = dedupOk ? dedup.impressions : somaImp;
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json({
       investimentoTrafego: spend,
       leadsMeta: leads,
       cplMeta: leads > 0 ? spend / leads : 0,
-      alcance: totalReach,
-      frequencia: totalReach > 0 ? totalImp / totalReach : 0,
+      alcance,
+      frequencia: alcance > 0 ? impressoesRef / alcance : 0,
+      // true = alcance deduplicado pela própria Meta; false = soma por campanha.
+      alcanceDedup: dedupOk,
+      // Nenhuma campanha do período casou com `metaMatch` — normalmente é config
+      // desatualizada (campanha renomeada, edição nova sem o termo certo). A tela
+      // usa isso para avisar em vez de mostrar R$ 0,00 como se fosse o resultado.
+      semCampanhas: campanhas.length === 0,
       porDia,
       campanhas,
     });

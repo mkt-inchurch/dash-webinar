@@ -67,9 +67,13 @@ export function applyDateFilter(base: DashboardData, series: DashboardSeries, r:
   }
 
   // CPL Real = Investimento ÷ Inscritos ADS (custo por inscrito vindo de anúncio).
-  if (out.inscritosAds != null && out.inscritosAds > 0) {
-    out.cplReal = out.investimentoTrafego / out.inscritosAds;
-  }
+  // Sem inscritos ADS não existe CPA: zera em vez de deixar o valor que veio da
+  // planilha-base compartilhada. Era assim que a edição 24/08 (ADS = 0) exibia
+  // "R$ 0,28" — número de OUTRO webinar — e ainda ganhava o destaque de melhor CPA
+  // na tela de comparação.
+  out.cplReal = out.inscritosAds && out.inscritosAds > 0
+    ? out.investimentoTrafego / out.inscritosAds
+    : 0;
 
   return out;
 }

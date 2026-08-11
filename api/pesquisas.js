@@ -3,7 +3,7 @@
 // apenas registros a partir de 19/06/2026 (há dados anteriores que devem ser
 // ignorados). Processa no servidor: só contagens saem daqui, nada de PII.
 
-import { getEdition, brToTs, toBoundTs } from './_editions.js';
+import { getEdition, brToTs, toBoundTs, pesquisaUtmFilters } from './_editions.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
 // Aba única "Pesquisa Geral" (mistura TODOS os webinars). Usamos o endpoint
@@ -52,10 +52,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Colunas de e-mail/data não encontradas' });
     }
     // A planilha mistura webinars; a edição separa pela utm_campaign: inclui só as
-    // que contêm `pesquisaUtmMatch` e/ou exclui as que contêm `pesquisaUtmExclude`.
-    const utmMatch = (ed.pesquisaUtmMatch || '').toUpperCase();
-    const utmExclude = (ed.pesquisaUtmExclude || '').toUpperCase();
-    const iUtm = (utmMatch || utmExclude) ? header.indexOf('utm_campaign') : -1;
+    // que contêm `pesquisaUtmMatch` e/ou exclui as que contêm qualquer termo de
+    // `pesquisaUtmExclude` (string ou lista).
+    const { match: utmMatch, excludes: utmExcludes, usaUtm } = pesquisaUtmFilters(ed);
+    const iUtm = usaUtm ? header.indexOf('utm_campaign') : -1;
 
     // Dedup por e-mail, considerando só registros a partir do CUTOFF, guardando a
     // data da primeira pesquisa (>= CUTOFF) de cada pessoa.
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
       if (!email) continue;
       const utmVal = iUtm === -1 ? '' : String(row[iUtm] || '').toUpperCase();
       if (utmMatch && !utmVal.includes(utmMatch)) continue;
-      if (utmExclude && utmVal.includes(utmExclude)) continue;
+      if (utmExcludes.some((t) => utmVal.includes(t))) continue;
       const ts = brToTs(row[iDate]);
       if (!ts) continue;
       if (DESDE && ts < DESDE) continue; // antes do início da edição
