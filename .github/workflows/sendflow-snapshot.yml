@@ -59,9 +59,15 @@ jobs:
           set -e
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          # Branch órfã só com o snapshot (sem histórico do código, sem build da Vercel).
+          # Branch órfã só com o snapshot (sem histórico do código).
           git checkout --orphan data-tmp
           git rm -rf --cached . >/dev/null
-          git add -f sendflow-snapshot.json
+          # O [skip ci] da mensagem NÃO basta: a Vercel abria um deploy de preview a
+          # cada push desta branch e ele falhava (aqui não há package.json), mandando
+          # um e-mail "Failed preview deployment" de hora em hora. O vercel.json abaixo
+          # desliga o deploy da branch de forma explícita — a Vercel lê esse arquivo do
+          # commit que ela ia deployar, então ele precisa viver AQUI, não na main.
+          printf '{ "git": { "deploymentEnabled": { "data": false } } }\n' > vercel.json
+          git add -f sendflow-snapshot.json vercel.json
           git commit -m 'chore(data): snapshot do Sendflow [skip ci]'
           git push -f origin data-tmp:data
