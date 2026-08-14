@@ -23,6 +23,15 @@ async function fetchInsights(token, account, daily, since, until, match) {
     level: 'campaign',
     fields: 'campaign_id,campaign_name,spend,impressions,reach,actions',
     time_range: JSON.stringify({ since, until }),
+    // Filtra pelo nome já na Graph API. Antes a consulta trazia TODAS as campanhas
+    // da conta no período e a seleção era só o `.filter()` lá embaixo — o que basta
+    // para os webinars (conta pequena e dedicada), mas derruba a consulta em contas
+    // grandes: na "inChurch - Principal" (100+ campanhas, e com time_increment=1 são
+    // milhares de linhas) a Meta respondia "Service temporarily unavailable" /
+    // "An unknown error occurred" e a edição da Calculadora ficava sem o card do Meta.
+    // O `.filter()` continua como rede de segurança: se a Graph API ignorar o
+    // `filtering`, o resultado é o mesmo de antes, só mais lento.
+    filtering: JSON.stringify([{ field: 'campaign.name', operator: 'CONTAIN', value: match }]),
     limit: '500',
     access_token: token,
   };
