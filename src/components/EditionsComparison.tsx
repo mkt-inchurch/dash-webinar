@@ -61,6 +61,13 @@ const CHARTS: { key: string; label: string; get: (d: DashboardData) => number; f
 // "Webinar IA 15/06" → "IA 15/06"
 const shortLabel = (label: string) => label.replace(/^Webinar\s+/i, '');
 
+// A coluna de métricas fica fixa e só as edições rolam na horizontal — com 10
+// edições, o nome da métrica saía da tela e não dava para saber que linha era qual.
+// Cada célula dessa coluna precisa de fundo OPACO (senão os números passam por
+// baixo) e o divisor vai como box-shadow: com `border-collapse`, a borda lateral de
+// uma célula sticky não acompanha a rolagem.
+const STICKY_COL = 'sticky left-0 z-10 shadow-[1px_0_0_0_var(--color-bg-card-border)]';
+
 // Índice do melhor valor da linha (ou -1). Ignora zeros.
 function bestIndex(values: number[], better: Better): number {
   if (better === 'none') return -1;
@@ -158,7 +165,9 @@ export const EditionsComparison: FC = () => {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b border-bg-card-border">
-                <th className="px-3 py-2.5 text-left font-medium text-fg-subtle whitespace-nowrap">Métrica</th>
+                <th className={cn(STICKY_COL, 'bg-bg-card px-3 py-2.5 text-left font-medium text-fg-subtle whitespace-nowrap')}>
+                  Métrica
+                </th>
                 {eds.map((e) => (
                   <th key={e.id} className="px-3 py-2.5 text-right whitespace-nowrap">
                     <span className="inline-flex items-center rounded-lg bg-in-green/10 border border-in-green/25 text-in-green px-2.5 py-1 text-xs font-semibold">
@@ -171,17 +180,24 @@ export const EditionsComparison: FC = () => {
             <tbody>
               {SECTIONS.map((section) => (
                 <Fragment key={section.title}>
-                  <tr className="bg-bg-card-hover/40">
-                    <td colSpan={eds.length + 1} className="px-3 py-2 text-xs font-mono uppercase tracking-widest text-fg-subtle">
+                  {/* Fundo opaco (era `/40`) para a célula fixa do título casar com
+                      o resto da linha em vez de virar um retângulo mais claro. */}
+                  <tr className="bg-bg-card-hover">
+                    <td className={cn(STICKY_COL, 'bg-bg-card-hover px-3 py-2 text-xs font-mono uppercase tracking-widest text-fg-subtle whitespace-nowrap')}>
                       {section.title}
                     </td>
+                    <td colSpan={eds.length} />
                   </tr>
                   {section.metrics.map((m) => {
                     const values = eds.map((e) => m.get(e.data));
                     const best = bestIndex(values, m.better);
                     return (
-                      <tr key={m.key} className="border-b border-bg-card-border/50 hover:bg-bg-card-hover">
-                        <td className="px-3 py-2.5 text-left text-fg-muted whitespace-nowrap">{m.label}</td>
+                      <tr key={m.key} className="group border-b border-bg-card-border/50 hover:bg-bg-card-hover">
+                        {/* `group-hover` porque o fundo opaco da coluna fixa cobre o
+                            hover da linha — sem isso só o resto da linha acendia. */}
+                        <td className={cn(STICKY_COL, 'bg-bg-card group-hover:bg-bg-card-hover px-3 py-2.5 text-left text-fg-muted whitespace-nowrap')}>
+                          {m.label}
+                        </td>
                         {values.map((v, i) => (
                           <td
                             key={i}
