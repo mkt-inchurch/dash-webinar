@@ -1,59 +1,14 @@
 // Vercel Serverless Function — conta o "Total de Inscritos" a partir da planilha
-// (aba Inscritos_29_06), deduplicando por e-mail. Processa no servidor para NÃO
+// de inscritos da edição, deduplicando por e-mail. Processa no servidor para NÃO
 // expor dados pessoais (nome/telefone/e-mail) ao navegador — só contagens saem daqui.
 
-import { getEdition, brToTs, toBoundTs } from './_editions.js';
-
-const DEFAULT_SHEET_ID = '1QkFMFOCMMAzj3BgEoiCtTD_YHSu48p51xmu9Y3TaulM';
-const BROWSER_UA =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
-
-// Parser CSV mínimo (trata aspas e vírgulas dentro de campos).
-function parseCSV(text) {
-  const rows = [];
-  let row = [], field = '', inQ = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQ) {
-      if (c === '"') {
-        if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false;
-      } else field += c;
-    } else if (c === '"') inQ = true;
-    else if (c === ',') { row.push(field); field = ''; }
-    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
-    else if (c !== '\r') field += c;
-  }
-  if (field.length || row.length) { row.push(field); rows.push(row); }
-  return rows;
-}
+import { getEdition } from './_editions.js';
+import { lerInscritos, dedupInscritos, porDiaDeContagem } from './_planilha-inscritos.js';
 
 export default async function handler(req, res) {
   const ed = getEdition(req);
-  const DESDE = toBoundTs(ed.inscritosDesde, false);
-  const ATE = toBoundTs(ed.inscritosAte, true);
-  const SHEET_ID = ed.inscritosSheet || DEFAULT_SHEET_ID;
-  // Endpoint /export (não gviz): o gviz RESPEITA filtros aplicados na planilha e
-  // devolve só as linhas visíveis — foi o que fez o card do 20/07 mostrar 365/2 em
-  // vez de 1023/668. O /export devolve a aba inteira, imune a filtros. A aba é
-  // selecionada pelo `inscritosGid` (o /export não aceita nome de aba); sem gid,
-  // usa a primeira aba.
-  const CSV_URL =
-    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv` +
-    (ed.inscritosGid != null ? `&gid=${ed.inscritosGid}` : '');
   try {
-    const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
-    if (!r.ok) {
-      return res.status(502).json({ error: `Planilha respondeu ${r.status}` });
-    }
-    const rows = parseCSV(await r.text());
-    if (!rows.length) return res.status(502).json({ error: 'Planilha vazia' });
-
-    const header = rows[0];
-    const iEmail = header.indexOf('Email');
-    const iData = header.indexOf('Data');
-    const iSrc = header.indexOf('UTM Source');
-    const iMed = header.indexOf('UTM Medium');
-    if (iEmail === -1) return res.status(500).json({ error: 'Coluna Email não encontrada' });
+    const { header, linhas } = await lerInscritos(ed);
 
     // Como identificar "Inscritos ADS" nesta edição. Padrão (webinar IA): a coluna
     // UTM Source contém "WEBINAR_IA". Edições onde o valor do tráfego pago varia
@@ -63,25 +18,12 @@ export default async function handler(req, res) {
     const adsField = ed.inscritosAdsField || 'source'; // 'source' | 'medium'
     const adsMatch = (ed.inscritosAdsMatch || 'WEBINAR_IA').toUpperCase();
     const adsExclude = (ed.inscritosAdsExclude || []).map((s) => s.toUpperCase());
-    const iAds = adsField === 'medium' ? iMed : iSrc;
 
-    // Dedup por e-mail (só inscritos a partir do CUTOFF), guardando a data de
-    // PRIMEIRA inscrição (>= CUTOFF) de cada pessoa e a UTM Source dela.
-    const firstByEmail = new Map();
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const email = String(row[iEmail] || '').trim().toLowerCase();
-      if (!email) continue;
-      const ts = iData === -1 ? null : brToTs(row[iData]);
-      if (!ts) continue; // sem data
-      if (DESDE && ts < DESDE) continue; // antes do início da edição
-      if (ATE && ts > ATE) continue; // depois do fim da edição
-      const iso = ts.slice(0, 10); // dia (para o "novos por dia")
-      const cur = firstByEmail.get(email);
-      if (cur === undefined || iso < cur.iso) {
-        firstByEmail.set(email, { iso, ads: iAds === -1 ? '' : String(row[iAds] || '') });
-      }
-    }
+    // Dedup por e-mail dentro da janela da edição, guardando a data da PRIMEIRA
+    // inscrição de cada pessoa e a UTM que a trouxe.
+    const firstByEmail = dedupInscritos(ed, header, linhas, {
+      ads: adsField === 'medium' ? 'UTM Medium' : 'UTM Source',
+    });
 
     const total = firstByEmail.size;
 
@@ -106,11 +48,7 @@ export default async function handler(req, res) {
         totalAds++;
       }
     }
-    const toPorDia = (m) =>
-      Object.entries(m)
-        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-        .map(([data, novos]) => ({ data, novos }));
-    const porDia = toPorDia(byDay);
+    const porDia = porDiaDeContagem(byDay);
     let acc = 0;
     for (const d of porDia) { acc += d.novos; d.acumulado = acc; }
 
@@ -120,9 +58,9 @@ export default async function handler(req, res) {
       inscritosAds: totalAds,
       desde: ed.inscritosDesde,
       porDia,
-      porDiaAds: toPorDia(byDayAds),
+      porDiaAds: porDiaDeContagem(byDayAds),
     });
   } catch (err) {
-    return res.status(500).json({ error: String(err) });
+    return res.status(err.status ? 502 : 500).json({ error: String(err.message || err) });
   }
 }

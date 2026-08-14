@@ -17,7 +17,7 @@ import { useTheme } from '../lib/theme';
 import { GOALS } from '../lib/goals';
 import { META_INSCRITOS } from '../lib/constants';
 import { benchmark, BenchMetric } from '../lib/benchmarks';
-import { EDITIONS, DEFAULT_EDITION, editionLabel } from '../lib/editions';
+import { EDITIONS, DEFAULT_EDITION, editionLabel, editionTemPesquisas } from '../lib/editions';
 import {
   DollarSign, Users, Eye, Repeat, FileText, Target, TrendingDown, TrendingUp,
   Percent, BarChart3, MousePointerClick, Link2, UserPlus, UserMinus, Search,
@@ -54,6 +54,9 @@ export function Dashboard() {
   const [range, setRange] = useState<DateRange | null>(null);
   const [view, setView] = useState<'single' | 'compare'>('single');
   const [openChart, setOpenChart] = useState<string | null>(null); // card clicado → gráfico
+  // Edições que qualificam o lead no próprio formulário (ex.: Calculadora de
+  // Líderes) não têm etapa de pesquisa — o card sai da tela em vez de exibir zero.
+  const temPesquisas = editionTemPesquisas(edition);
 
   // Ao trocar de edição: persiste e reseta o filtro para o período total da nova edição.
   useEffect(() => {
@@ -333,7 +336,9 @@ export function Dashboard() {
               {...clickProps('entradasGrupo')}
               delay={0.11}
             />
-            <KPICard title="Total de Pesquisas" value={formatNumber(data.pesquisas)} icon={<Search className="w-5 h-5" />} footer={pctFooter(pctPesquisas, 'dos inscritos')} {...clickProps('pesquisas')} delay={0.14} />
+            {temPesquisas && (
+              <KPICard title="Total de Pesquisas" value={formatNumber(data.pesquisas)} icon={<Search className="w-5 h-5" />} footer={pctFooter(pctPesquisas, 'dos inscritos')} {...clickProps('pesquisas')} delay={0.14} />
+            )}
             <KPICard title="Total de ICPs" value={formatNumber(data.icps)} icon={<Target className="w-5 h-5" />} footer={pctFooter(pctIcps, 'dos inscritos')} {...clickProps('icps')} delay={0.17} />
             <KPICard title="Diagnósticos" value={formatNumber(data.diagnosticos)} icon={<Stethoscope className="w-5 h-5" />} highlight {...clickProps('diagnosticos')} delay={0.2} />
             <KPICard

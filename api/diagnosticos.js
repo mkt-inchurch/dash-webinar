@@ -6,6 +6,7 @@
 // Retorna também `porDia` para o filtro de período da tela somar dentro da janela.
 
 import { getEdition, brToTs, toBoundTs } from './_editions.js';
+import { lerInscritos, dedupInscritos, porDiaDeContagem } from './_planilha-inscritos.js';
 
 const SHEET_ID = '1TCf4XiDVw-Rq0608W7712I5q-ZotwKzgZ7m56kmdpj0';
 // 1ª aba via /export (não gviz): o gviz respeita filtros aplicados na planilha e
@@ -48,11 +49,39 @@ function findCol(header, patterns) {
   return -1;
 }
 
+// Edições fora da planilha compartilhada de diagnósticos (ex.: Calculadora de
+// Líderes) marcam o diagnóstico numa coluna da própria planilha de inscritos: cada
+// linha com o valor de `diagValor` ("Sim") na coluna `diagCol` é um diagnóstico.
+// Aqui a janela de data não é necessária — a planilha é exclusiva da edição.
+async function diagnosticosDaPlanilhaDeInscritos(ed, res) {
+  const { header, linhas } = await lerInscritos(ed);
+  const registros = dedupInscritos(ed, header, linhas, { diag: ed.diagCol || 'Diagnóstico' });
+  const alvo = String(ed.diagValor || 'Sim').trim().toLowerCase();
+
+  const byDay = {};
+  let total = 0;
+  for (const { iso, diag } of registros.values()) {
+    if (String(diag || '').trim().toLowerCase() !== alvo) continue;
+    byDay[iso] = (byDay[iso] || 0) + 1;
+    total++;
+  }
+
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+  return res.status(200).json({
+    diagnosticos: total,
+    inicio: ed.inscritosDesde,
+    fim: ed.inscritosAte,
+    porDia: porDiaDeContagem(byDay),
+  });
+}
+
 export default async function handler(req, res) {
   const ed = getEdition(req);
   const DESDE = toBoundTs(ed.diagDesde, false);
   const ATE = toBoundTs(ed.diagAte, true); // null = aberto
   try {
+    if (ed.diagFonte === 'inscritos') return await diagnosticosDaPlanilhaDeInscritos(ed, res);
+
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
     if (!r.ok) {
       return res.status(502).json({ error: `Planilha respondeu ${r.status}. Verifique se está compartilhada como "Qualquer pessoa com o link · Leitor".` });
@@ -98,6 +127,6 @@ export default async function handler(req, res) {
       porDia,
     });
   } catch (err) {
-    return res.status(500).json({ error: String(err) });
+    return res.status(err.status ? 502 : 500).json({ error: String(err.message || err) });
   }
 }

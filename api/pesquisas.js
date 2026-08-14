@@ -39,6 +39,16 @@ export default async function handler(req, res) {
   const ed = getEdition(req);
   const DESDE = toBoundTs(ed.pesquisaDesde, false);
   const ATE = toBoundTs(ed.pesquisaAte, true);
+
+  // Edições que não têm etapa de pesquisa (ex.: Calculadora de Líderes, onde a
+  // qualificação já vem no próprio formulário). Responde zero em vez de ler a
+  // "Pesquisa Geral" — sem isso, a edição herdaria respostas de outros funis e o
+  // painel ainda marcaria a fonte como indisponível. O card fica escondido na tela.
+  if (ed.pesquisaFonte === 'nenhuma') {
+    res.setHeader('Cache-Control', 's-maxage=1800');
+    return res.status(200).json({ pesquisas: 0, desde: null, porDia: [] });
+  }
+
   try {
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
     if (!r.ok) return res.status(502).json({ error: `Planilha respondeu ${r.status}` });

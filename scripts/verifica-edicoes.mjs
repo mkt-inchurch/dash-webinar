@@ -18,6 +18,7 @@ import inscritos from '../api/inscritos.js';
 const ORDEM = [
   'webinar-15-06', 'webinar-04-07', 'webinar-13-07', 'webinar-20-07', 'webinar-27-07',
   'webinar-03-08', 'webinar-10-08', 'webinar-17-08', 'webinar-24-08',
+  'calculadora-lideres',
 ];
 
 // req/res mínimos no formato que os handlers esperam.
@@ -49,9 +50,15 @@ for (const id of ORDEM) {
   ]);
 
   const diag = d.body;
-  for (const dia of diag.porDia || []) {
-    if (!diasDiag.has(dia.data)) diasDiag.set(dia.data, []);
-    diasDiag.get(dia.data).push(id);
+  // A checagem de sobreposição vale só para quem divide a planilha compartilhada de
+  // diagnósticos (separada por janela de data). Edições que leem o diagnóstico da
+  // própria planilha de inscritos não disputam essas linhas — incluí-las aqui
+  // acusaria conflito em todo dia em que as duas fontes tivessem registro.
+  if (ed.diagFonte !== 'inscritos') {
+    for (const dia of diag.porDia || []) {
+      if (!diasDiag.has(dia.data)) diasDiag.set(dia.data, []);
+      diasDiag.get(dia.data).push(id);
+    }
   }
   const somaDiag = (diag.porDia || []).reduce((a, x) => a + x.novos, 0);
   if (somaDiag !== diag.diagnosticos) erros.push(`${id}: soma diária de diagnósticos (${somaDiag}) ≠ total (${diag.diagnosticos})`);

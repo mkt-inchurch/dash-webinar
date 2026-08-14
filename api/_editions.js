@@ -14,6 +14,8 @@
 // 416. Ao criar uma edição nova, feche a janela da edição imediatamente anterior.
 //
 // Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08
+// (a Calculadora de Líderes fica fora dessa fila: não usa a planilha compartilhada
+// de diagnósticos, e sim uma coluna da própria planilha de participantes.)
 
 // Tokens de utm_campaign da planilha "Pesquisa Geral" que NÃO são webinar (outros
 // funis que caem na mesma aba). As edições separadas só por DATA (15/06 e 04/07,
@@ -348,6 +350,60 @@ export const EDITIONS = {
     // Webinar 17/08 (futuro): da data do webinar até a véspera do próximo (24/08).
     diagDesde: '2026-08-17',
     diagAte: '2026-08-23',
+  },
+
+  // 10ª edição — Calculadora de Líderes. NÃO é um webinar: é uma isca de topo de
+  // funil (LP + calculadora) que roda de forma contínua, sem data de live. Por isso
+  // ela é a primeira edição que tira TODAS as métricas de leads de uma única
+  // planilha: a própria planilha de participantes já traz, por lead, as UTMs, a
+  // qualificação (P1–P4/Cliente/Desqualificado) e se a pessoa pediu diagnóstico.
+  // Não existe planilha de "pesquisa" nem de diagnósticos para ela — daí os campos
+  // `pesquisaFonte`/`icpFonte`/`diagFonte`/`utmFonte`.
+  'calculadora-lideres': {
+    id: 'calculadora-lideres',
+    label: 'Calculadora de Líderes',
+    // Planilha dedicada ("Participantes", aba única gid 0). Sem corte de data: tudo
+    // que está nela é desta isca.
+    inscritosSheet: '11562UTo7niqs_TQ00Oa1mR8h4KL1mmo-EKuqZuaEGtQ',
+    inscritosGid: 0,
+    inscritosDesde: null,
+    inscritosAte: null,
+    // "Inscritos ADS": aqui não dá para identificar o pago por um termo fixo na UTM
+    // Source — ela chega ora como o nome da campanha ("[INCH] TOPO | CALCULADORA"),
+    // ora como o placement do Meta (ig/fb), ora como a macro quebrada
+    // `{{campaign.name}}`. O que é constante é o NÃO pago: quem chega sem UTM
+    // (direto/orgânico) ou por conteúdo/e-mail. Então vale o critério inverso.
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ['CONTEUDO', 'EMAIL', 'ORGANIC', 'HS_EMAIL', 'X1_DISPARAI'],
+    // Sem etapa de pesquisa: a qualificação já é feita no formulário da calculadora.
+    // O card "Total de Pesquisas" fica escondido na tela (ver src/lib/editions.ts).
+    pesquisaFonte: 'nenhuma',
+    // ICPs (P1–P4) e Diagnósticos saem da planilha de participantes.
+    icpFonte: 'inscritos',
+    icpCol: 'Qualificação',
+    diagFonte: 'inscritos',
+    diagCol: 'Diagnóstico',
+    diagValor: 'Sim',
+    // Tabela "UTM × Prioridade" também vem da planilha de participantes.
+    utmFonte: 'inscritos',
+    // Meta: a campanha "[INCH] TOPO | CALCULADORA" (id 120251343322500763) roda em
+    // OUTRA conta de anúncios — a "inChurch - Principal [Linha de Crédito]", e não a
+    // "InChurch 03" usada pelos webinars. Por isso o `metaAccount`. O termo
+    // CALCULADORA é exclusivo dela nessa conta, então a janela pode ficar aberta.
+    metaAccount: '412508302812099',
+    metaMatch: 'CALCULADORA',
+    metaDesde: '2026-07-01', // 1ª inscrição é de 08/07; o piso pega o aquecimento
+    metaAte: null,
+    // Release dedicada "Calculadora de Líderes" (grupo de WhatsApp da isca). Modo
+    // campaign: entradas = adds, saídas = removes por dia. Sem corte de data.
+    sendflowRelease: 'JanlKFKz4RInkUUvyNDe',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Diagnósticos vêm da coluna da própria planilha (diagFonte), então a janela da
+    // planilha compartilhada de diagnósticos não se aplica aqui.
+    diagDesde: null,
+    diagAte: null,
   },
 };
 

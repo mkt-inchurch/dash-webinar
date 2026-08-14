@@ -7,7 +7,9 @@
 
 import { getEdition } from './_editions.js';
 
-const AD_ACCOUNT_ID = '1511142633474747'; // InChurch 03 [Cartão de crédito]
+// Conta padrão das campanhas de webinar. Edições cuja mídia roda em outra conta
+// (ex.: a Calculadora de Líderes, na "inChurch - Principal") definem `metaAccount`.
+const DEFAULT_AD_ACCOUNT_ID = '1511142633474747'; // InChurch 03 [Cartão de crédito]
 const GRAPH_VERSION = 'v21.0';
 
 function actionVal(actions, type) {
@@ -16,7 +18,7 @@ function actionVal(actions, type) {
 }
 const num = (v) => parseInt(v || '0', 10) || 0;
 
-async function fetchInsights(token, daily, since, until, match) {
+async function fetchInsights(token, account, daily, since, until, match) {
   const params = {
     level: 'campaign',
     fields: 'campaign_id,campaign_name,spend,impressions,reach,actions',
@@ -25,7 +27,7 @@ async function fetchInsights(token, daily, since, until, match) {
     access_token: token,
   };
   if (daily) params.time_increment = '1';
-  let url = `https://graph.facebook.com/${GRAPH_VERSION}/act_${AD_ACCOUNT_ID}/insights?` + new URLSearchParams(params);
+  let url = `https://graph.facebook.com/${GRAPH_VERSION}/act_${account}/insights?` + new URLSearchParams(params);
   const all = [];
   for (let page = 0; page < 10 && url; page++) {
     const r = await fetch(url);
@@ -43,7 +45,7 @@ async function fetchInsights(token, daily, since, until, match) {
 // campanha, o que inflava o alcance e, por consequência, DEFLACIONAVA a frequência
 // (impressões ÷ alcance). Se o filtro não for aceito pela Graph API, devolve null
 // e o chamador cai no comportamento antigo (soma), sinalizando isso na resposta.
-async function fetchAlcanceDedup(token, since, until, match) {
+async function fetchAlcanceDedup(token, account, since, until, match) {
   const params = {
     level: 'account',
     fields: 'spend,impressions,reach',
@@ -54,7 +56,7 @@ async function fetchAlcanceDedup(token, since, until, match) {
   };
   try {
     const r = await fetch(
-      `https://graph.facebook.com/${GRAPH_VERSION}/act_${AD_ACCOUNT_ID}/insights?` + new URLSearchParams(params)
+      `https://graph.facebook.com/${GRAPH_VERSION}/act_${account}/insights?` + new URLSearchParams(params)
     );
     const j = await r.json();
     if (j.error || !Array.isArray(j.data) || !j.data.length) return null;
@@ -89,12 +91,13 @@ export default async function handler(req, res) {
   const since = ed.metaDesde;
   const until = ed.metaAte || new Date().toISOString().slice(0, 10);
   const match = ed.metaMatch;
+  const account = ed.metaAccount || DEFAULT_AD_ACCOUNT_ID;
 
   try {
     const [dailyRows, campRows, dedup] = await Promise.all([
-      fetchInsights(token, true, since, until, match),
-      fetchInsights(token, false, since, until, match),
-      fetchAlcanceDedup(token, since, until, match),
+      fetchInsights(token, account, true, since, until, match),
+      fetchInsights(token, account, false, since, until, match),
+      fetchAlcanceDedup(token, account, since, until, match),
     ]);
 
     // ---- Série diária (KPIs filtráveis + gráficos de tendência) ----

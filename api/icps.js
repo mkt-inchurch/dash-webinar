@@ -7,6 +7,7 @@
 // (>= 19/06) de cada e-mail.
 
 import { getEdition, brToTs, toBoundTs, pesquisaUtmFilters } from './_editions.js';
+import { lerInscritos, dedupInscritos, icpCol } from './_planilha-inscritos.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
 // Aba única "Pesquisa Geral" via /export (imune a filtros; o gviz respeita filtros
@@ -36,11 +37,44 @@ function parseCSV(text) {
   return rows;
 }
 
+// Edições sem planilha de pesquisa (ex.: Calculadora de Líderes) já trazem a
+// classificação do lead na própria planilha de inscritos, numa coluna equivalente
+// ao "Filtro de Leads" (`icpCol`). Mesma saída da versão por pesquisa: total, P1–P4
+// e a série por dia para o filtro de período.
+async function icpsDaPlanilhaDeInscritos(ed, res) {
+  const { header, linhas } = await lerInscritos(ed);
+  const registros = dedupInscritos(ed, header, linhas, { filtro: icpCol(ed) });
+
+  const counts = { p1: 0, p2: 0, p3: 0, p4: 0 };
+  const byDay = {};
+  for (const { iso, filtro } of registros.values()) {
+    const perfil = String(filtro || '').trim().toUpperCase();
+    if (!PERFIS.includes(perfil)) continue; // Cliente/Desqualificado/em branco
+    const k = perfil.toLowerCase();
+    counts[k]++;
+    if (!byDay[iso]) byDay[iso] = { p1: 0, p2: 0, p3: 0, p4: 0 };
+    byDay[iso][k]++;
+  }
+  const porDia = Object.entries(byDay)
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([data, v]) => ({ data, ...v }));
+
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+  return res.status(200).json({
+    icps: counts.p1 + counts.p2 + counts.p3 + counts.p4,
+    ...counts,
+    desde: ed.inscritosDesde,
+    porDia,
+  });
+}
+
 export default async function handler(req, res) {
   const ed = getEdition(req);
   const DESDE = toBoundTs(ed.pesquisaDesde, false);
   const ATE = toBoundTs(ed.pesquisaAte, true);
   try {
+    if (ed.icpFonte === 'inscritos') return await icpsDaPlanilhaDeInscritos(ed, res);
+
     const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
     if (!r.ok) return res.status(502).json({ error: `Planilha respondeu ${r.status}` });
     const rows = parseCSV(await r.text());
@@ -94,6 +128,6 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json({ icps, ...counts, desde: ed.pesquisaDesde, porDia });
   } catch (err) {
-    return res.status(500).json({ error: String(err) });
+    return res.status(err.status ? 502 : 500).json({ error: String(err.message || err) });
   }
 }
