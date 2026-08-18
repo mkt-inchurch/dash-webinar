@@ -17,7 +17,7 @@ import inscritos from '../api/inscritos.js';
 
 const ORDEM = [
   'webinar-15-06', 'webinar-04-07', 'webinar-13-07', 'webinar-20-07', 'webinar-27-07',
-  'webinar-03-08', 'webinar-10-08', 'webinar-17-08', 'webinar-24-08',
+  'webinar-03-08', 'webinar-10-08', 'webinar-17-08', 'webinar-24-08', 'webinar-31-08',
   'calculadora-lideres',
 ];
 

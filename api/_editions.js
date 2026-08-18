@@ -13,7 +13,7 @@
 // era contado em 2, 3 ou 4 edições: o painel somava 715 diagnósticos onde existiam
 // 416. Ao criar uma edição nova, feche a janela da edição imediatamente anterior.
 //
-// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08
+// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08
 // (a Calculadora de Líderes fica fora dessa fila: não usa a planilha compartilhada
 // de diagnósticos, e sim uma coluna da própria planilha de participantes.)
 
@@ -304,9 +304,9 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 24/08 (futuro): diagnósticos (planilha compartilhada) só a partir daí.
+    // Webinar 24/08: da data do webinar até a véspera do próximo (31/08, Trilha).
     diagDesde: '2026-08-24',
-    diagAte: null,
+    diagAte: '2026-08-30',
   },
 
   // 9ª edição — Trilha da Integração (17/08): mesma trilha do 20/07 e do 03/08
@@ -338,8 +338,10 @@ export const EDITIONS = {
     // Meta: as MESMAS campanhas WEBINAR_TRILHA do 20/07 e do 03/08 (a "LP01" segue
     // ativa e as novas 02–07 nasceram em 31/07, todas com WEBINAR_TRILHA no nome) —
     // a separação é só por DATA: o 03/08 fecha em 03/08 e o 17/08 conta de 04/08.
+    // Fechado em 17/08 quando a turma do 31/08 entrou na fila (mesmas campanhas):
+    // sem esse teto, o gasto de 18/08 em diante contaria NAS DUAS edições.
     metaDesde: '2026-08-04',
-    metaAte: null,
+    metaAte: '2026-08-17',
     metaMatch: 'WEBINAR_TRILHA',
     // Release dedicada "Webinar: Trilha de Integração (17/08)". Modo campaign:
     // entradas = adds, saídas = removes por dia. Sem corte (release só desta edição).
@@ -350,6 +352,58 @@ export const EDITIONS = {
     // Webinar 17/08 (futuro): da data do webinar até a véspera do próximo (24/08).
     diagDesde: '2026-08-17',
     diagAte: '2026-08-23',
+  },
+
+  // 11ª edição — Trilha da Integração (31/08): turma seguinte à do 17/08 (Pedro
+  // Franco). Mesmo desenho das outras Trilhas: aba de inscritos e release do
+  // Sendflow próprias, Meta reusando as MESMAS campanhas WEBINAR_TRILHA (separação
+  // por DATA) e pesquisa separada pela utm_campaign da turma.
+  'webinar-31-08': {
+    id: 'webinar-31-08',
+    label: 'Webinar Trilha 31/08',
+    inscritosSheet: '1q42q1ZlHGmNG0w6Fkm1lM-PazsrI8fzf78EQoPmznR0',
+    inscritosGid: 845387558, // aba Inscritos_31_08
+    // Aba dedicada a esta edição → toda inscrição nela é do 31/08 (sem corte de data).
+    inscritosDesde: null,
+    inscritosAte: null,
+    // Mesmo critério INVERSO das outras Trilhas: o pago não tem um termo fixo na UTM
+    // Source (no 17/08 chegava como a macro quebrada `{{TRILHA_17.08}}`, como o nome
+    // da campanha ou como `{{campaign.name}}`), mas o ORGÂNICO é constante — source
+    // CONTEUDO (LP /webinar-integracao/organico/) e hs_email. Então é ADS tudo que
+    // tem UTM Source preenchida e fora desta lista. Não depende de saber a macro
+    // desta turma, que provavelmente virá como `{{TRILHA_31.08}}`.
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ['CONTEUDO', 'EMAIL', 'ORGANIC'],
+    // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign da turma.
+    // Sem corte de data porque a captação do 31/08 se sobrepõe à do 17/08 — quem
+    // separa é a utm. O match para no número do dia porque o time nomeia o mesmo
+    // token de três jeitos (_17_AGO, _03_AGOSTO_26, _03_AGO, e nos webinars de IA
+    // _27_07); "..._31" cobre todas as variantes e não colide com nenhum outro token
+    // existente na planilha.
+    // ⚠️ Em 18/08 ainda não havia NENHUMA resposta com este token — as respostas da
+    // Trilha continuam chegando como WEBINAR_TRILHA_INTEGRACAO_17_AGO. Enquanto o
+    // link da pesquisa não ganhar a utm da turma nova, Pesquisas/ICPs/UTMs do 31/08
+    // ficam em 0 (e o excedente continua caindo na edição 17/08).
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    pesquisaUtmMatch: 'WEBINAR_TRILHA_INTEGRACAO_31',
+    // Meta: as MESMAS campanhas WEBINAR_TRILHA das turmas anteriores (a "LP01" segue
+    // ativa). A separação é só por DATA: o 17/08 fecha em 17/08 e o 31/08 conta de
+    // 18/08 — o mesmo corte usado entre o 03/08 e o 17/08.
+    metaDesde: '2026-08-18',
+    metaAte: null,
+    metaMatch: 'WEBINAR_TRILHA',
+    // Release dedicada "Webinar: Trilha de Integração (31/08)". Modo campaign:
+    // entradas = adds, saídas = removes por dia. Sem corte (release só desta edição).
+    sendflowRelease: 'TI42HPjduPZRNUJTzfAJ',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Webinar 31/08 (futuro): diagnósticos (planilha compartilhada) só a partir daí.
+    // É a última da fila, então a janela fica aberta — feche em `diagAte` quando a
+    // próxima edição for criada.
+    diagDesde: '2026-08-31',
+    diagAte: null,
   },
 
   // 10ª edição — Calculadora de Líderes. NÃO é um webinar: é uma isca de topo de

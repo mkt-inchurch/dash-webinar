@@ -98,7 +98,14 @@ export default async function handler(req, res) {
 
   const ed = getEdition(req);
   const since = ed.metaDesde;
-  const until = ed.metaAte || new Date().toISOString().slice(0, 10);
+  // Uma edição criada ANTES de a mídia dela começar tem `metaDesde` no futuro (a
+  // Trilha 31/08 nasceu em 17/08 com o corte em 18/08, o dia seguinte ao webinar
+  // anterior). Sem o piso, o time_range sairia invertido (since > until) e a Graph
+  // API responderia erro — o painel mostraria "Meta Ads indisponível" em vez do
+  // aviso correto de "nenhuma campanha ainda". Com o piso a janela é de um dia só,
+  // vem vazia, e a edição passa a somar sozinha quando o gasto começar.
+  const hoje = new Date().toISOString().slice(0, 10);
+  const until = ed.metaAte || (since && since > hoje ? since : hoje);
   const match = ed.metaMatch;
   const account = ed.metaAccount || DEFAULT_AD_ACCOUNT_ID;
 

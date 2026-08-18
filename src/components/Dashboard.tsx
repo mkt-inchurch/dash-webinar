@@ -27,7 +27,7 @@ import {
 const sectionTitle = 'text-sm font-mono text-fg-subtle mb-4 px-2 uppercase tracking-widest';
 
 // Edições do webinar "Trilha da Integração" (tag amarela no header).
-const TRILHA_EDITIONS = new Set(['webinar-20-07', 'webinar-03-08', 'webinar-17-08']);
+const TRILHA_EDITIONS = new Set(['webinar-20-07', 'webinar-03-08', 'webinar-17-08', 'webinar-31-08']);
 
 // Rótulos amigáveis das fontes de dados (para o aviso de indisponibilidade).
 const SOURCE_LABELS: Record<string, string> = {
@@ -181,7 +181,7 @@ export function Dashboard() {
           <div className="flex items-center gap-3 min-w-0">
             <img src={logoSrc} alt="inchurch" className="h-6 w-auto shrink-0 select-none" draggable={false} />
             <span className="h-6 w-px bg-bg-card-border hidden sm:block" />
-            {/* Cor da tag por webinar: Trilha (20/07, 03/08, 17/08) amarela; Igreja
+            {/* Cor da tag por webinar: Trilha (20/07, 03/08, 17/08, 31/08) amarela; Igreja
                 Digital (24/08) verde-limão (#a6f60d, cor da marca); IA verde padrão. O
                 hex do Igreja Digital vai por style inline (fora da paleta do Tailwind). */}
             <span
