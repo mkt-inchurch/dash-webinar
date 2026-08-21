@@ -225,7 +225,7 @@ export function Dashboard() {
             {error && (
               <span className="hidden md:inline-flex items-center gap-1.5 bg-yellow-500/10 text-yellow-500 px-3 py-1.5 rounded-lg text-xs font-medium border border-yellow-500/20">
                 <AlertCircle className="w-3.5 h-3.5" />
-                Modo Demo
+                Falha ao carregar
               </span>
             )}
 
@@ -409,17 +409,31 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Por Campanha */}
+        {/* Por Campanha. ATENÇÃO: a Graph API devolve o recorte por campanha só do
+            PERÍODO TOTAL da edição (não há série por dia por campanha), então estes
+            dois blocos NÃO acompanham o filtro de data — sem o aviso, com "7 dias"
+            selecionado a soma da tabela não fechava com o card "Gasto Total" e parecia
+            erro de conta. */}
         {data.campanhas && data.campanhas.length > 0 && (
           <div>
-            <h2 className={sectionTitle}>Por Campanha — Top 8</h2>
+            <h2 className={sectionTitle}>
+              Por Campanha — Top 8
+              {!isFullRange(activeRange, full) && (
+                <span className="ml-2 normal-case tracking-normal text-yellow-500">· período total da edição, não acompanha o filtro</span>
+              )}
+            </h2>
             <CampanhaBars campanhas={data.campanhas} />
           </div>
         )}
 
         {/* Tabela */}
         {data.campanhas && data.campanhas.length > 0 && (
-          <CampanhasTable campanhas={data.campanhas} inscritosAds={data.inscritosAds} leadsMeta={data.leadsMeta} />
+          <CampanhasTable
+            campanhas={data.campanhas}
+            inscritosAds={rawData.inscritosAds}
+            leadsMeta={rawData.leadsMeta}
+            periodoFiltrado={!isFullRange(activeRange, full)}
+          />
         )}
 
         {/* UTM × Prioridade */}

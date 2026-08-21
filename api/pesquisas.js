@@ -3,7 +3,7 @@
 // apenas registros a partir de 19/06/2026 (há dados anteriores que devem ser
 // ignorados). Processa no servidor: só contagens saem daqui, nada de PII.
 
-import { getEdition, brToTs, toBoundTs, pesquisaUtmFilters } from './_editions.js';
+import { getEdition, brToTs, criaFiltroPesquisa } from './_editions.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
 // Aba única "Pesquisa Geral" (mistura TODOS os webinars). Usamos o endpoint
@@ -37,8 +37,10 @@ function parseCSV(text) {
 
 export default async function handler(req, res) {
   const ed = getEdition(req);
-  const DESDE = toBoundTs(ed.pesquisaDesde, false);
-  const ATE = toBoundTs(ed.pesquisaAte, true);
+  // Um unico predicado compartilhado com /icps e /utms (api/_editions.js):
+  // utm por inclusao + janela da edicao, OU uma das regras `pesquisaExtra`
+  // (tokens genericos por igualdade exata, com janela propria).
+  const aceita = criaFiltroPesquisa(ed);
 
   // Edições que não têm etapa de pesquisa (ex.: Calculadora de Líderes, onde a
   // qualificação já vem no próprio formulário). Responde zero em vez de ler a
@@ -61,11 +63,7 @@ export default async function handler(req, res) {
     if (iEmail === -1 || iDate === -1) {
       return res.status(500).json({ error: 'Colunas de e-mail/data não encontradas' });
     }
-    // A planilha mistura webinars; a edição separa pela utm_campaign: inclui só as
-    // que contêm `pesquisaUtmMatch` e/ou exclui as que contêm qualquer termo de
-    // `pesquisaUtmExclude` (string ou lista).
-    const { match: utmMatch, excludes: utmExcludes, usaUtm } = pesquisaUtmFilters(ed);
-    const iUtm = usaUtm ? header.indexOf('utm_campaign') : -1;
+    const iUtm = header.indexOf('utm_campaign');
 
     // Dedup por e-mail, considerando só registros a partir do CUTOFF, guardando a
     // data da primeira pesquisa (>= CUTOFF) de cada pessoa.
@@ -74,13 +72,9 @@ export default async function handler(req, res) {
       const row = rows[i];
       const email = String(row[iEmail] || '').trim().toLowerCase();
       if (!email) continue;
-      const utmVal = iUtm === -1 ? '' : String(row[iUtm] || '').toUpperCase();
-      if (utmMatch && !utmVal.includes(utmMatch)) continue;
-      if (utmExcludes.some((t) => utmVal.includes(t))) continue;
       const ts = brToTs(row[iDate]);
       if (!ts) continue;
-      if (DESDE && ts < DESDE) continue; // antes do início da edição
-      if (ATE && ts > ATE) continue; // depois do fim da edição
+      if (!aceita(iUtm === -1 ? '' : row[iUtm], ts)) continue;
       const iso = ts.slice(0, 10);
       const cur = firstByEmail.get(email);
       if (cur === undefined || iso < cur) firstByEmail.set(email, iso);

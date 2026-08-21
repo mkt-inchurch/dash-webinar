@@ -24,6 +24,42 @@
 // webinar.
 const OUTROS_FUNIS = ['MATERIAL_AULA_IA', 'CALCULADORA_26', 'PESQUISA_DIAGNOSTICO_26'];
 
+// REGRA DAS RESPOSTAS COM UTM GENERICA (`pesquisaExtra`). O link da pesquisa que
+// circula DENTRO do grupo de WhatsApp, no disparo (X1_DISPARAI) e nos e-mails nunca
+// recebeu a utm da turma: ficou com o token generico da linha de produto
+// ('WEBINAR_IA', 'TRILHA_INTEGRACAO', 'WEBINAR_TRILHA_INTEGRACAO'). Como as edicoes
+// de 13/07 em diante sao separadas pela utm PROPRIA, essas respostas nao caiam em
+// NENHUMA edicao: 625 respostas de webinar (14% da planilha) ficavam fora do painel e
+// derrubavam artificialmente "Total de Pesquisas" e "Total de ICPs" -- o 13/07
+// aparecia com 15% dos inscritos respondendo, contra 36% do 15/06, que e separado so
+// por data e por isso nao perdia nada.
+//
+// `pesquisaExtra` e uma lista de regras { tokens, desde, ate } que casam a
+// utm_campaign por IGUALDADE EXATA -- e isso que impede colisao com os tokens
+// especificos ('WEBINAR_IA' exato nunca casa com 'WEBINAR_IA_13_JUL'). A separacao
+// entre edicoes da mesma linha e por DATA, em cadeia contigua e sem sobreposicao.
+//
+// Calibrado em 21/08/2026 cruzando e-mail x aba de inscritos de cada edicao (fonte de
+// verdade): reproduz ~90% da atribuicao real e nao gera nenhuma resposta contada em
+// duas edicoes. Ao criar uma edicao nova da mesma linha, feche a janela
+// `pesquisaExtra` da edicao anterior.
+
+// Origens NAO pagas da coluna "UTM Source" da planilha de inscritos. "Inscritos ADS"
+// e tudo que tem UTM Source preenchida e NAO contem nenhum destes termos.
+//
+// POR QUE O CRITERIO E INVERSO EM TODAS AS EDICOES: nao existe um termo fixo que
+// identifique o pago -- a UTM Source chega ora com o nome da campanha
+// ("[IN][INCH][LEADS] TOPO DE FUNIL | WEBINAR_IA"), ora truncada ("[IN][INCH][LEADS]"),
+// ora como macro quebrada ("{{campaign.name}}", "{{TRILHA_17.08}}", "{{IGREJA_DIGITAL}}"),
+// ora como o placement ("ig"/"fb"), ora simplesmente "TRAFEGO". O que e constante e o
+// NAO pago. Ate 21/08/2026 as edicoes antigas casavam por inclusao de "WEBINAR_IA" /
+// "WEBINAR_TRILHA" e por isso perdiam esses inscritos pagos (45 no 15/06, 14 no 20/07,
+// 13 no 04/07...), o que inflava o CPA real dessas edicoes.
+// Ao aparecer uma origem NAO paga nova (um disparo com outra tag, um parceiro), o
+// lugar de registrar e AQUI -- senao ela passa a contar como inscrito de anuncio e
+// derruba o CPA real de todas as edicoes.
+export const ORIGENS_NAO_PAGAS = ['CONTEUDO', 'EMAIL', 'ORGANIC', 'HS_EMAIL', 'X1_DISPARAI', 'INDICACAO', 'EVENTOS', 'WHATSAPP', 'GRUPO'];
+
 export const EDITIONS = {
   // 1ª edição — captação 29/05→18/06, webinar 15/06. Tudo até 18/06 23h
   // (o split com a 2ª edição é 19/06). Sendflow: grupos #1 e #2 (o #3 só encheu
@@ -40,6 +76,8 @@ export const EDITIONS = {
     // utm_campaign vazia, então a separação é por data. Só excluímos os funis que
     // claramente não são o webinar (179 respostas de MATERIAL_AULA_IA caíam aqui).
     pesquisaUtmExclude: OUTROS_FUNIS,
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     metaDesde: '2026-05-01', // captação começou 29/05; buffer p/ pegar todo o gasto
     metaAte: '2026-06-18',
     metaMatch: 'WEBINAR_IA',
@@ -68,6 +106,18 @@ export const EDITIONS = {
     // Ainda sem utm padronizada por edição: separação por data + exclusão dos
     // outros funis (58 respostas de MATERIAL_AULA_IA caíam nesta janela).
     pesquisaUtmExclude: OUTROS_FUNIS,
+    // Respostas com utm generica que pertencem a esta edicao:
+    //  - WEBINAR_IA_29_JUN e o token EXCLUSIVO da campanha desta edicao ("29_06"), mas
+    //    23 respostas chegaram depois do corte de 03/07 (rabo pos-webinar) e ficavam de
+    //    fora. Sem janela: nenhuma outra edicao usa esse token.
+    //  - WEBINAR_IA (generico) de 04 a 10/07 = o pos-webinar do 04/07, distribuido no
+    //    grupo. De 11/07 em diante ja e captacao do 13/07 (ver a edicao 13/07).
+    pesquisaExtra: [
+      { tokens: ['WEBINAR_IA_29_JUN'] },
+      { tokens: ['WEBINAR_IA'], desde: '2026-07-04', ate: '2026-07-10' },
+    ],
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     metaDesde: '2026-06-19',
     metaAte: '2026-07-03', // fecha antes da nova captação p/ não sobrepor
     metaMatch: 'WEBINAR_IA',
@@ -99,13 +149,18 @@ export const EDITIONS = {
     // inconsistente entre campanhas (paid / "00 - advtg" / macros quebradas), então
     // filtrar por medium=paid subcontava (pegava só ~289 de ~664 pagos).
     inscritosAdsField: 'source',
-    inscritosAdsMatch: 'WEBINAR_TRILHA',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Pesquisa: mesma planilha do IA, separada pela utm_campaign (não por data).
     pesquisaDesde: null,
     // Fecha em 20/07 (dia do webinar): respostas WEBINAR_TRILHA a partir de 21/07
     // são captação da edição seguinte (03/08) — sem o corte, contariam nas duas.
     pesquisaAte: '2026-07-20',
     pesquisaUtmMatch: 'WEBINAR_TRILHA',
+    // 103 respostas vieram com o token generico TRILHA_INTEGRACAO (sem o prefixo
+    // WEBINAR_), que o match acima nao pega, todas de 21 a 28/07 -- o pos-webinar
+    // desta turma, divulgado no grupo. Fecha em 02/08 (vespera do webinar seguinte
+    // da Trilha) para nao invadir a turma do 03/08.
+    pesquisaExtra: [{ tokens: ['TRILHA_INTEGRACAO'], ate: '2026-08-02' }],
     metaDesde: '2026-07-01',
     // Fecha em 20/07 (dia do webinar): o gasto WEBINAR_TRILHA a partir de 21/07 é
     // captação do 03/08 (mesmas campanhas/UTM) — o corte evita contagem dupla.
@@ -137,7 +192,7 @@ export const EDITIONS = {
     inscritosAte: null,
     // "Inscritos ADS" pela UTM Source conter WEBINAR_TRILHA (igual ao 20/07).
     inscritosAdsField: 'source',
-    inscritosAdsMatch: 'WEBINAR_TRILHA',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Pesquisa: mesma planilha do IA, mesma utm WEBINAR_TRILHA do 20/07, separada
     // por data — respostas a partir de 21/07 (após o webinar 20/07) até 03/08 (dia
     // do webinar). Além do corte de data, EXCLUI a utm própria da edição 17/08
@@ -148,6 +203,14 @@ export const EDITIONS = {
     pesquisaAte: '2026-08-03',
     pesquisaUtmMatch: 'WEBINAR_TRILHA',
     pesquisaUtmExclude: '_17_AGO',
+    // Pos-webinar do 03/08: as respostas de 04 a 16/08 que vieram com o token generico
+    // (sem o sufixo da turma) sao desta edicao -- de 17/08 em diante ja sao da turma
+    // seguinte. Igualdade exata, entao nao rouba as respostas com _17_AGO/_31_AGO.
+    pesquisaExtra: [{
+      tokens: ['WEBINAR_TRILHA_INTEGRACAO', 'WEBINAR_TRILHA_INTEGRACAO_03_AGOSTO_26', 'WEBINAR_TRILHA_INTEGRACAO_03_AGO'],
+      desde: '2026-08-04',
+      ate: '2026-08-16',
+    }],
     // Meta: mesmas campanhas WEBINAR_TRILHA, gasto a partir de 21/07 (nova captação).
     // Fecha em 03/08 (dia do webinar): o gasto WEBINAR_TRILHA de 04/08 em diante é
     // captação da edição seguinte (17/08), que reusa as MESMAS campanhas.
@@ -178,6 +241,12 @@ export const EDITIONS = {
     // A aba "Pesquisa Geral" mistura webinars; o 13/07 é separado pela sua própria
     // utm_campaign (respostas vindas da campanha do webinar 13/07).
     pesquisaUtmMatch: 'WEBINAR_IA_13_JUL',
+    // 88 respostas desta edicao chegaram com a utm generica WEBINAR_IA (link do grupo
+    // e do disparo, que nunca ganhou o token da turma). De 11 a 19/07: 04 a 10/07 e o
+    // pos-webinar do 04/07 e 20/07 em diante ja e captacao do 27/07.
+    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-07-11', ate: '2026-07-19' }],
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     metaDesde: '2026-07-04',
     // Fecha em 13/07 (dia do webinar): o gasto WEBINAR_IA a partir de 14/07 é
     // captação da edição seguinte (27/07) — sem esse corte, o 13/07 (janela
@@ -188,6 +257,10 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign', // campanha inteira (entradas e saídas por dia)
     sendflowDesde: '2026-07-04',
+    // Fecha em 31/07: sobrou 1 entrada solta em 13/08 (quase um mes depois da live)
+    // que esticava "Todo o periodo desta edicao" ate 13/08 e deixava os graficos por
+    // dia com um vazio de 4 semanas.
+    sendflowAte: '2026-07-31',
     // Diagnósticos do 13/07: até a véspera do próximo webinar (Trilha 20/07). A
     // janela era ABERTA (null) e engolia inteiras as edições 20/07, 27/07, 03/08 e
     // 10/08 — o card mostrava 247 diagnósticos, dos quais só 24 eram desta edição.
@@ -212,6 +285,11 @@ export const EDITIONS = {
     pesquisaDesde: null,
     pesquisaAte: null,
     pesquisaUtmMatch: 'WEBINAR_IA_27',
+    // 86 respostas desta edicao vieram com a utm generica WEBINAR_IA. Janela de 20/07
+    // (inicio da captacao do 27/07) a 09/08 (vespera do webinar seguinte de IA).
+    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-07-20', ate: '2026-08-09' }],
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Campanhas "WEBINAR_IA_04" (ids 120248071509010003 etc.). ATENÇÃO: em 28/07 o
     // time RENOMEOU essas MESMAS campanhas de "| 27.07" para "| 10-08" e passou a
     // usá-las na captação do 10/08 — 27/07 e 10/08 COMPARTILHAM as campanhas. Por
@@ -248,6 +326,12 @@ export const EDITIONS = {
     // Pesquisa do 10/08: utm_campaign contém "WEBINAR_IA_10_AGO" (cobre também
     // DISPARAI_META_WEBINAR_IA_10_AGO, do disparo). Não colide com outras edições.
     pesquisaUtmMatch: 'WEBINAR_IA_10_AGO',
+    // Respostas com a utm generica WEBINAR_IA a partir de 10/08 (dia do webinar). E a
+    // ultima edicao de IA da fila, entao a janela fica aberta -- feche `ate` quando a
+    // proxima edicao de IA for criada.
+    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-08-10' }],
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Meta: o 10/08 REUSA as MESMAS campanhas do 27/07 — o time renomeou
     // "WEBINAR_IA_04 | 27.07" para "WEBINAR_IA_04 | 10-08" (mesmos ids). Como o nome
     // ainda contém WEBINAR_IA_04, a separação 27/07 × 10/08 é só por DATA: o 27/07
@@ -282,16 +366,22 @@ export const EDITIONS = {
     inscritosDesde: null,
     inscritosAte: null,
     // "Inscritos ADS": o tráfego pago chega com a UTM Source "{{IGREJA_DIGITAL}}"
-    // (macro com chaves, mas constante — 456 linhas). O orgânico vem como CONTEUDO
-    // (grupos) e hs_email; por isso o match por inclusão em "IGREJA_DIGITAL" separa
-    // certo sem depender das chaves.
+    // (macro com chaves, mas constante). O não pago é CONTEUDO (grupos), hs_email e
+    // X1_DISPARAI (disparo de WhatsApp, 295 inscritos) — todos na lista compartilhada.
+    // O resultado é o mesmo do match antigo por "IGREJA_DIGITAL" (521), mas segue
+    // valendo se a macro mudar de nome na próxima turma.
     inscritosAdsField: 'source',
-    inscritosAdsMatch: 'IGREJA_DIGITAL',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign própria
     // (WEBINAR_IGREJA_DIGITAL, desde 31/07). Não colide com nenhuma outra edição.
     pesquisaDesde: null,
     pesquisaAte: null,
     pesquisaUtmMatch: 'WEBINAR_IGREJA_DIGITAL',
+    // 16 respostas chegaram com o token WEBINAR_IA_24_AGO (link errado, montado com o
+    // nome da linha de IA em vez do Igreja Digital) -- vieram dos grupos de WhatsApp e
+    // do disparo, entre 10 e 21/08. Nao existe webinar de IA em 24/08; o token e
+    // exclusivo desta edicao, por isso entra sem janela de data.
+    pesquisaExtra: [{ tokens: ['WEBINAR_IA_24_AGO'] }],
     // Meta: campanhas "[...] | WEBINAR_IGREJA_DIGITAL | 24-08 - PAGINA ...", no ar
     // desde 02/08. O termo é exclusivo deste webinar (IA e Trilha não o contêm),
     // então a separação é só pelo nome — a janela é aberta.
@@ -328,13 +418,16 @@ export const EDITIONS = {
     // medium GRUPOS / GRUPOS_WHATSAPP). Então invertemos o critério: é ADS tudo que
     // tem UTM Source preenchida e NÃO está na lista de origens não-pagas.
     inscritosAdsField: 'source',
-    inscritosAdsExclude: ['CONTEUDO', 'EMAIL', 'ORGANIC'],
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign própria
     // desta turma (WEBINAR_TRILHA_INTEGRACAO_17_AGO). Sem corte de data: a captação
     // do 17/08 começou em 31/07, sobreposta à do 03/08 — quem separa é a utm.
     pesquisaDesde: null,
     pesquisaAte: null,
     pesquisaUtmMatch: 'WEBINAR_TRILHA_INTEGRACAO_17_AGO',
+    // Pos-webinar do 17/08: respostas com o token generico (sem sufixo de turma) de
+    // 17 a 30/08. Fecha em 30/08, vespera do webinar seguinte da Trilha.
+    pesquisaExtra: [{ tokens: ['WEBINAR_TRILHA_INTEGRACAO'], desde: '2026-08-17', ate: '2026-08-30' }],
     // Meta: as MESMAS campanhas WEBINAR_TRILHA do 20/07 e do 03/08 (a "LP01" segue
     // ativa e as novas 02–07 nasceram em 31/07, todas com WEBINAR_TRILHA no nome) —
     // a separação é só por DATA: o 03/08 fecha em 03/08 e o 17/08 conta de 04/08.
@@ -363,8 +456,11 @@ export const EDITIONS = {
     label: 'Webinar Trilha 31/08',
     inscritosSheet: '1q42q1ZlHGmNG0w6Fkm1lM-PazsrI8fzf78EQoPmznR0',
     inscritosGid: 845387558, // aba Inscritos_31_08
-    // Aba dedicada a esta edição → toda inscrição nela é do 31/08 (sem corte de data).
-    inscritosDesde: null,
+    // A aba e dedicada a esta turma, mas tem 1 linha solta datada de 10/07 (linha de
+    // teste, anterior a existencia da turma) que esticava "Todo o periodo desta edicao"
+    // para 10/07-21/08 e deixava 5 semanas vazias nos graficos por dia. O piso e a
+    // vespera da 1a inscricao real (17/08).
+    inscritosDesde: '2026-08-16',
     inscritosAte: null,
     // Mesmo critério INVERSO das outras Trilhas: o pago não tem um termo fixo na UTM
     // Source (no 17/08 chegava como a macro quebrada `{{TRILHA_17.08}}`, como o nome
@@ -373,7 +469,7 @@ export const EDITIONS = {
     // tem UTM Source preenchida e fora desta lista. Não depende de saber a macro
     // desta turma, que provavelmente virá como `{{TRILHA_31.08}}`.
     inscritosAdsField: 'source',
-    inscritosAdsExclude: ['CONTEUDO', 'EMAIL', 'ORGANIC'],
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign da turma.
     // Sem corte de data porque a captação do 31/08 se sobrepõe à do 17/08 — quem
     // separa é a utm. O match para no número do dia porque o time nomeia o mesmo
@@ -387,6 +483,10 @@ export const EDITIONS = {
     pesquisaDesde: null,
     pesquisaAte: null,
     pesquisaUtmMatch: 'WEBINAR_TRILHA_INTEGRACAO_31',
+    // Enquanto o link da pesquisa nao ganhar a utm da turma, as respostas continuam
+    // chegando com o token generico: a partir de 31/08 elas sao desta edicao. E a
+    // ultima da fila, entao a janela fica aberta.
+    pesquisaExtra: [{ tokens: ['WEBINAR_TRILHA_INTEGRACAO'], desde: '2026-08-31' }],
     // Meta: as MESMAS campanhas WEBINAR_TRILHA das turmas anteriores (a "LP01" segue
     // ativa). A separação é só por DATA: o 17/08 fecha em 17/08 e o 31/08 conta de
     // 18/08 — o mesmo corte usado entre o 03/08 e o 17/08.
@@ -428,7 +528,7 @@ export const EDITIONS = {
     // `{{campaign.name}}`. O que é constante é o NÃO pago: quem chega sem UTM
     // (direto/orgânico) ou por conteúdo/e-mail. Então vale o critério inverso.
     inscritosAdsField: 'source',
-    inscritosAdsExclude: ['CONTEUDO', 'EMAIL', 'ORGANIC', 'HS_EMAIL', 'X1_DISPARAI'],
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Sem etapa de pesquisa: a qualificação já é feita no formulário da calculadora.
     // O card "Total de Pesquisas" fica escondido na tela (ver src/lib/editions.ts).
     pesquisaFonte: 'nenhuma',
@@ -461,7 +561,11 @@ export const EDITIONS = {
   },
 };
 
-export const DEFAULT_EDITION = 'webinar-13-07';
+// Edicao aberta por padrao (e fallback do servidor quando `?ed=` vem vazio ou
+// desconhecido). Deve ser a edicao com captacao ATIVA -- ficou parada no 13/07 por
+// meses, entao quem abria o painel caia numa edicao encerrada havia 5 semanas.
+// Atualize junto com a criacao de cada edicao nova (e o mesmo valor em src/lib/editions.ts).
+export const DEFAULT_EDITION = 'webinar-24-08';
 
 // "DD/MM/AAAA[ HH:MM:SS]" -> "AAAA-MM-DDTHH:MM:SS" (ordenável). null se inválido.
 // Sem hora vira 00:00:00. Serve tanto p/ "Submitted At" quanto p/ "Data" (só dia).
@@ -492,6 +596,42 @@ export function pesquisaUtmFilters(ed) {
     .map((s) => String(s || '').toUpperCase())
     .filter(Boolean);
   return { match, excludes, usaUtm: !!(match || excludes.length) };
+}
+
+// Uma linha da "Pesquisa Geral" casa alguma regra `pesquisaExtra` desta edicao?
+// A comparacao do token e por IGUALDADE EXATA (ver o bloco no topo do arquivo).
+export function pesquisaExtraCasa(ed, utmUpper, ts) {
+  const regras = ed.pesquisaExtra;
+  if (!Array.isArray(regras) || !regras.length || !utmUpper) return false;
+  for (const r of regras) {
+    if (!r.tokens.some((t) => String(t).toUpperCase() === utmUpper)) continue;
+    const de = toBoundTs(r.desde, false);
+    const ate = toBoundTs(r.ate, true);
+    if (de && ts < de) continue;
+    if (ate && ts > ate) continue;
+    return true;
+  }
+  return false;
+}
+
+// Fabrica o predicado "esta linha da Pesquisa Geral e desta edicao?", usado por
+// /pesquisas, /icps e /utms (que antes repetiam o mesmo filtro em triplicata e
+// podiam divergir entre si). Recebe o valor cru da utm_campaign e o timestamp
+// ordenavel da resposta. Precomputa os limites uma vez por requisicao.
+export function criaFiltroPesquisa(ed) {
+  const { match, excludes, usaUtm } = pesquisaUtmFilters(ed);
+  const DESDE = toBoundTs(ed.pesquisaDesde, false);
+  const ATE = toBoundTs(ed.pesquisaAte, true);
+  const temExtra = Array.isArray(ed.pesquisaExtra) && ed.pesquisaExtra.length > 0;
+  return (utmRaw, ts) => {
+    const utm = String(utmRaw || '').trim().toUpperCase();
+    // Regra principal: utm por INCLUSAO (ou so data) dentro da janela da edicao.
+    const utmVal = usaUtm ? utm : '';
+    const passaUtm = (!match || utmVal.includes(match)) && !excludes.some((t) => utmVal.includes(t));
+    if (passaUtm && !((DESDE && ts < DESDE) || (ATE && ts > ATE))) return true;
+    // Regras extras: token generico por IGUALDADE EXATA, com janela propria.
+    return temExtra ? pesquisaExtraCasa(ed, utm, ts) : false;
+  };
 }
 
 export function getEdition(idOrReq) {

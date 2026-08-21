@@ -6,7 +6,7 @@
 // ICP = P1 + P2 + P3 + P4 (leads qualificados). Dedup: mantém o PRIMEIRO registro
 // (>= 19/06) de cada e-mail.
 
-import { getEdition, brToTs, toBoundTs, pesquisaUtmFilters } from './_editions.js';
+import { getEdition, brToTs, criaFiltroPesquisa } from './_editions.js';
 import { lerInscritos, dedupInscritos, icpCol } from './_planilha-inscritos.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
@@ -70,8 +70,7 @@ async function icpsDaPlanilhaDeInscritos(ed, res) {
 
 export default async function handler(req, res) {
   const ed = getEdition(req);
-  const DESDE = toBoundTs(ed.pesquisaDesde, false);
-  const ATE = toBoundTs(ed.pesquisaAte, true);
+  const aceita = criaFiltroPesquisa(ed); // mesmo filtro de /pesquisas e /utms
   try {
     if (ed.icpFonte === 'inscritos') return await icpsDaPlanilhaDeInscritos(ed, res);
 
@@ -87,9 +86,7 @@ export default async function handler(req, res) {
     if (iEmail === -1 || iDate === -1 || iFiltro === -1) {
       return res.status(500).json({ error: 'Colunas e-mail/data/Filtro de Leads não encontradas' });
     }
-    // A planilha mistura webinars; a edição separa pela utm_campaign (match/exclude).
-    const { match: utmMatch, excludes: utmExcludes, usaUtm } = pesquisaUtmFilters(ed);
-    const iUtm = usaUtm ? header.indexOf('utm_campaign') : -1;
+    const iUtm = header.indexOf('utm_campaign');
 
     // Dedup por e-mail: mantém o PRIMEIRO registro (>= CUTOFF) de cada pessoa e usa
     // a classificação "Filtro de Leads" dele.
@@ -98,13 +95,9 @@ export default async function handler(req, res) {
       const row = rows[i];
       const email = String(row[iEmail] || '').trim().toLowerCase();
       if (!email) continue;
-      const utmVal = iUtm === -1 ? '' : String(row[iUtm] || '').toUpperCase();
-      if (utmMatch && !utmVal.includes(utmMatch)) continue;
-      if (utmExcludes.some((t) => utmVal.includes(t))) continue;
       const ts = brToTs(row[iDate]);
       if (!ts) continue;
-      if (DESDE && ts < DESDE) continue;
-      if (ATE && ts > ATE) continue;
+      if (!aceita(iUtm === -1 ? '' : row[iUtm], ts)) continue;
       const iso = ts.slice(0, 10);
       const cur = firstByEmail.get(email);
       if (!cur || iso < cur.iso) firstByEmail.set(email, { iso, filtro: String(row[iFiltro] || '').trim() });

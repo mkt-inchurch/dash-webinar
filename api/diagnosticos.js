@@ -38,7 +38,7 @@ function parseCSV(text) {
 
 // Normaliza cabeçalho para casar por nome (sem acento/caixa/espaços).
 const norm = (s) =>
-  String(s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 // Acha a 1ª coluna cujo cabeçalho casa com algum dos padrões.
 function findCol(header, patterns) {

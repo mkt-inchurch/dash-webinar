@@ -4,7 +4,7 @@
 // (P1–P4 = MQL) e Desqualificado (DESQ). "Cliente" fica fora do total.
 // Processa no servidor: só contagens saem daqui, nada de PII.
 
-import { getEdition, brToTs, toBoundTs, pesquisaUtmFilters } from './_editions.js';
+import { getEdition, brToTs, criaFiltroPesquisa } from './_editions.js';
 import { lerInscritos, dedupInscritos, icpCol } from './_planilha-inscritos.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
@@ -124,8 +124,7 @@ async function utmsDaPlanilhaDeInscritos(ed, dim, res) {
 
 export default async function handler(req, res) {
   const ed = getEdition(req);
-  const DESDE = toBoundTs(ed.pesquisaDesde, false);
-  const ATE = toBoundTs(ed.pesquisaAte, true);
+  const aceita = criaFiltroPesquisa(ed); // mesmo filtro de /pesquisas e /icps
   const dimRaw = req.query && req.query.dim;
   const dim = DIMS.includes(dimRaw) ? dimRaw : 'utm_campaign';
 
@@ -145,24 +144,24 @@ export default async function handler(req, res) {
     if (iEmail === -1 || iFiltro === -1 || iDim === -1) {
       return res.status(500).json({ error: 'Colunas e-mail/Filtro de Leads/UTM não encontradas' });
     }
-    // A planilha mistura webinars; a edição separa pela utm_campaign (match/exclude).
-    const { match: utmMatch, excludes: utmExcludes, usaUtm } = pesquisaUtmFilters(ed);
-    const iUtm = usaUtm ? header.indexOf('utm_campaign') : -1;
+    const iUtm = header.indexOf('utm_campaign');
 
-    // Dedup por e-mail (primeiro registro na janela), guardando UTM + classificação.
+    // Dedup por e-mail guardando UTM + classificação. Mantem o registro MAIS ANTIGO
+    // da janela (antes era a 1a linha na ordem da planilha): /icps ja fazia assim, e
+    // com criterios diferentes a tabela podia mostrar uma classificacao e o card de
+    // ICPs outra para a mesma pessoa.
     const firstByEmail = new Map();
     for (let i = 1; i < rows.length; i++) {
       const email = String(rows[i][iEmail] || '').trim().toLowerCase();
       if (!email) continue;
-      const utmVal = iUtm === -1 ? '' : String(rows[i][iUtm] || '').toUpperCase();
-      if (utmMatch && !utmVal.includes(utmMatch)) continue;
-      if (utmExcludes.some((t) => utmVal.includes(t))) continue;
       const ts = iDate === -1 ? null : brToTs(rows[i][iDate]);
       if (!ts) continue;
-      if (DESDE && ts < DESDE) continue;
-      if (ATE && ts > ATE) continue;
-      if (firstByEmail.has(email)) continue;
+      if (!aceita(iUtm === -1 ? '' : rows[i][iUtm], ts)) continue;
+      const iso = ts.slice(0, 10);
+      const cur = firstByEmail.get(email);
+      if (cur && cur.iso <= iso) continue;
       firstByEmail.set(email, {
+        iso,
         dimVal: String(rows[i][iDim] || '').trim() || '(sem utm)',
         filtro: String(rows[i][iFiltro] || '').trim().toUpperCase(),
       });

@@ -27,7 +27,12 @@ export const EDITIONS: Edition[] = [
   { id: 'webinar-15-06', label: 'Webinar IA 15/06' },
 ];
 
-export const DEFAULT_EDITION = 'webinar-13-07';
+// Edicao aberta na primeira visita (depois disso vale a ultima escolhida, salva em
+// localStorage). Deve ser a edicao com captacao ATIVA: ficou parada no 13/07, entao
+// quem abria o painel caia numa edicao encerrada havia 5 semanas e lia os numeros dela
+// como se fossem os de agora. Atualize a cada edicao nova, junto com o mesmo valor em
+// api/_editions.js (que e o fallback do servidor quando `?ed=` vem vazio).
+export const DEFAULT_EDITION = 'webinar-24-08';
 
 export const editionLabel = (id: string) =>
   EDITIONS.find((e) => e.id === id)?.label ?? id;

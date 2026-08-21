@@ -7,14 +7,19 @@ import { formatCurrency, formatNumber, formatCompact, formatPercent } from '../l
 interface CampanhasTableProps {
   campanhas: Campanha[];
   // Para a nota de rodapé: quanto o lead do pixel diverge da inscrição real.
+  // Devem ser os totais do PERÍODO COMPLETO, como as linhas da tabela — com os
+  // valores filtrados, a nota comparava 7 dias de inscritos com o total da campanha.
   inscritosAds?: number;
   leadsMeta?: number;
+  // O filtro de data está ativo? A tabela continua sendo do período completo (a Graph
+  // API não devolve série por dia por campanha), então isso vira um aviso no topo.
+  periodoFiltrado?: boolean;
 }
 
 const th = 'px-3 py-2 text-right font-medium text-fg-subtle whitespace-nowrap';
 const td = 'px-3 py-3 text-right text-fg whitespace-nowrap';
 
-export const CampanhasTable: FC<CampanhasTableProps> = ({ campanhas, inscritosAds, leadsMeta }) => {
+export const CampanhasTable: FC<CampanhasTableProps> = ({ campanhas, inscritosAds, leadsMeta, periodoFiltrado }) => {
   const [q, setQ] = useState('');
   if (!campanhas.length) return null;
 
@@ -34,7 +39,12 @@ export const CampanhasTable: FC<CampanhasTableProps> = ({ campanhas, inscritosAd
       className="border border-bg-card-border bg-bg-card rounded-2xl p-5"
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <h3 className="text-sm font-semibold text-fg">Campanhas</h3>
+        <h3 className="text-sm font-semibold text-fg">
+          Campanhas
+          {periodoFiltrado && (
+            <span className="ml-2 font-normal text-yellow-500">· período total da edição, não acompanha o filtro de data</span>
+          )}
+        </h3>
         <div className="relative">
           <Search className="w-4 h-4 text-fg-subtle absolute left-3 top-1/2 -translate-y-1/2" />
           <input
