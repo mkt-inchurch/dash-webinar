@@ -7,6 +7,7 @@
 
 import { getEdition, brToTs, toBoundTs } from './_editions.js';
 import { lerInscritos, dedupInscritos, porDiaDeContagem } from './_planilha-inscritos.js';
+import { lerCSV } from './_http.js';
 
 const SHEET_ID = '1TCf4XiDVw-Rq0608W7712I5q-ZotwKzgZ7m56kmdpj0';
 // 1ª aba via /export (não gviz): o gviz respeita filtros aplicados na planilha e
@@ -14,8 +15,6 @@ const SHEET_ID = '1TCf4XiDVw-Rq0608W7712I5q-ZotwKzgZ7m56kmdpj0';
 // devolve a aba inteira, imune a filtros. Separação por edição = janela de data.
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 
-const BROWSER_UA =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
 
 // Parser CSV mínimo (trata aspas e vírgulas dentro de campos).
 function parseCSV(text) {
@@ -82,11 +81,7 @@ export default async function handler(req, res) {
   try {
     if (ed.diagFonte === 'inscritos') return await diagnosticosDaPlanilhaDeInscritos(ed, res);
 
-    const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
-    if (!r.ok) {
-      return res.status(502).json({ error: `Planilha respondeu ${r.status}. Verifique se está compartilhada como "Qualquer pessoa com o link · Leitor".` });
-    }
-    const rows = parseCSV(await r.text());
+    const rows = parseCSV(await lerCSV(CSV_URL, 'diagnósticos'));
     if (rows.length < 2) return res.status(502).json({ error: 'Planilha vazia' });
 
     const header = rows[0];

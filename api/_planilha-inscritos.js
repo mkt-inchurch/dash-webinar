@@ -11,13 +11,12 @@
 // para o navegador, nunca nome/e-mail/telefone.
 
 import { brToTs, toBoundTs } from './_editions.js';
+import { lerCSV } from './_http.js';
 
 // Planilha padrão (webinar de IA). Edições com planilha própria definem
 // `inscritosSheet` na config.
 export const DEFAULT_SHEET_ID = '1QkFMFOCMMAzj3BgEoiCtTD_YHSu48p51xmu9Y3TaulM';
 
-const BROWSER_UA =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
 
 // Parser CSV mínimo (trata aspas e vírgulas dentro de campos).
 export function parseCSV(text) {
@@ -63,15 +62,10 @@ export function inscritosCsvUrl(ed) {
 // Baixa a planilha de inscritos da edição. Lança erro com `status` HTTP quando a
 // planilha responde mal (para o handler devolver 502 com a mensagem certa).
 export async function lerInscritos(ed) {
-  const r = await fetch(inscritosCsvUrl(ed), { headers: { 'User-Agent': BROWSER_UA } });
-  if (!r.ok) {
-    const err = new Error(
-      `Planilha de inscritos respondeu ${r.status}. Verifique se está compartilhada como "Qualquer pessoa com o link · Leitor".`
-    );
-    err.status = r.status;
-    throw err;
-  }
-  const rows = parseCSV(await r.text());
+  // lerCSV reenvia nos erros transitórios (rede, 429, 5xx) e recusa a página de
+  // login em HTML que o Google devolve — com status 200 — quando a planilha perde
+  // o compartilhamento público.
+  const rows = parseCSV(await lerCSV(inscritosCsvUrl(ed), 'inscritos'));
   if (rows.length < 2) {
     const err = new Error('Planilha de inscritos vazia');
     err.status = 502;

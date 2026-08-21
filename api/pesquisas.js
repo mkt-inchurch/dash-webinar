@@ -4,6 +4,7 @@
 // ignorados). Processa no servidor: só contagens saem daqui, nada de PII.
 
 import { getEdition, brToTs, criaFiltroPesquisa } from './_editions.js';
+import { lerCSV } from './_http.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
 // Aba única "Pesquisa Geral" (mistura TODOS os webinars). Usamos o endpoint
@@ -14,8 +15,6 @@ const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 const EMAIL_COL = 'Qual é seu e-mail?';
 const DATE_COL = 'Submitted At';
-const BROWSER_UA =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
 
 function parseCSV(text) {
   const rows = [];
@@ -52,9 +51,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
-    if (!r.ok) return res.status(502).json({ error: `Planilha respondeu ${r.status}` });
-    const rows = parseCSV(await r.text());
+    const rows = parseCSV(await lerCSV(CSV_URL, 'pesquisa'));
     if (!rows.length) return res.status(502).json({ error: 'Planilha vazia' });
 
     const header = rows[0];
@@ -93,6 +90,6 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json({ pesquisas: total, desde: ed.pesquisaDesde, porDia });
   } catch (err) {
-    return res.status(500).json({ error: String(err) });
+    return res.status(err.status || 500).json({ error: String(err.message || err) });
   }
 }

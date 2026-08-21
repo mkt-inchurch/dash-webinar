@@ -6,6 +6,7 @@
 
 import { getEdition, brToTs, criaFiltroPesquisa } from './_editions.js';
 import { lerInscritos, dedupInscritos, icpCol } from './_planilha-inscritos.js';
+import { lerCSV } from './_http.js';
 
 const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
 // Aba única "Pesquisa Geral" via /export (imune a filtros; o gviz respeita filtros
@@ -17,8 +18,6 @@ const COL_FILTRO = 'Filtro de Leads';
 const DIMS = ['utm_source', 'utm_medium', 'utm_campaign'];
 const TOP_N = 20;
 const MIN_VOL = 20; // volume mínimo p/ eleger melhor/pior qualidade
-const BROWSER_UA =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36';
 
 function parseCSV(text) {
   const rows = [];
@@ -131,9 +130,7 @@ export default async function handler(req, res) {
   try {
     if (ed.utmFonte === 'inscritos') return await utmsDaPlanilhaDeInscritos(ed, dim, res);
 
-    const r = await fetch(CSV_URL, { headers: { 'User-Agent': BROWSER_UA } });
-    if (!r.ok) return res.status(502).json({ error: `Planilha respondeu ${r.status}` });
-    const rows = parseCSV(await r.text());
+    const rows = parseCSV(await lerCSV(CSV_URL, 'pesquisa'));
     if (!rows.length) return res.status(502).json({ error: 'Planilha vazia' });
 
     const header = rows[0];

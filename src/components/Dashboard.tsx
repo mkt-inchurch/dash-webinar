@@ -11,7 +11,7 @@ import { MetricChart } from './MetricChart';
 import { UtmTable } from './UtmTable';
 import { LiveMetricsTable } from './LiveMetricsTable';
 import { getLiveMetrics } from '../lib/liveMetrics';
-import { fullRange, applyDateFilter, isFullRange, DateRange } from '../lib/dateFilter';
+import { fullRange, applyDateFilter, isFullRange, rangeTemDados, DateRange } from '../lib/dateFilter';
 import { formatCurrency, formatNumber, formatPercent, formatCompact, cn } from '../lib/utils';
 import { useTheme } from '../lib/theme';
 import { GOALS } from '../lib/goals';
@@ -48,7 +48,7 @@ export function Dashboard() {
     } catch { /* ignore */ }
     return DEFAULT_EDITION;
   });
-  const { data: rawData, series, loading, hasLoaded, error, unavailable, refetch } = useDashboardData(edition);
+  const { data: rawData, series, loading, hasLoaded, error, unavailable, motivos, refetch } = useDashboardData(edition);
   const { theme, toggle } = useTheme();
   const logoSrc = theme === 'light' ? '/logo-light.webp' : '/logo-dark.webp';
   const [range, setRange] = useState<DateRange | null>(null);
@@ -72,6 +72,13 @@ export function Dashboard() {
 
   const activeRange = range ?? full;
   const data = useMemo(() => applyDateFilter(rawData, series, activeRange), [rawData, series, activeRange]);
+  // Intervalo escolhido sem nenhum ponto de nenhuma série: todos os cards vão a
+  // zero e NENHUMA fonte falhou, então o aviso amarelo de indisponibilidade não
+  // aparece. Sem a faixa abaixo, a tela zerada passa por resultado real.
+  const semDadosNoPeriodo = useMemo(
+    () => hasLoaded && !loading && series.inscritos.length > 0 && !rangeTemDados(series, activeRange),
+    [hasLoaded, loading, series, activeRange]
+  );
   const metaSerie = useMemo(
     () => series.meta.filter((d) => d.data >= activeRange.start && d.data <= activeRange.end),
     [series.meta, activeRange]
@@ -287,16 +294,47 @@ export function Dashboard() {
           </span>
         </div>
 
+        {/* Aviso: o recorte de data escolhido não contém dado nenhum. */}
+        {semDadosNoPeriodo && (
+          <div className="flex items-start gap-2 border border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-xl px-4 py-3 text-sm">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold">Nenhuma inscrição nem investimento neste período. </span>
+              Os cards abaixo estão zerados por causa do recorte de data, não porque a edição foi mal — a captação
+              dela vai de <span className="font-semibold">{ddmm(full.start)}</span> a{' '}
+              <span className="font-semibold">{ddmm(full.end)}</span>.
+              <button onClick={() => setRange(full)} className="ml-2 underline underline-offset-2 hover:no-underline">
+                Ver todo o período
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Aviso: fonte(s) de dados indisponível(is) para esta edição. Os cards
             afetados ficam zerados (NÃO herdam número de outro webinar). */}
         {unavailable.length > 0 && (
           <div className="flex items-start gap-2 border border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-xl px-4 py-3 text-sm">
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
             <div>
-              <span className="font-semibold">Fonte de dados indisponível: </span>
-              {unavailable.map((u) => SOURCE_LABELS[u] ?? u).join(', ')}.
-              <span className="block text-xs opacity-80 mt-0.5">
-                Os cards dessas fontes estão zerados até a conexão voltar (não exibem dados de outra edição). Verifique se a planilha/API está acessível.
+              <span className="font-semibold">
+                Fonte de dados indisponível: {unavailable.map((u) => SOURCE_LABELS[u] ?? u).join(', ')}.
+              </span>
+              {/* O MOTIVO, quando a função soube dizer qual é. Antes a faixa só
+                  nomeava a fonte, e "Meta Ads indisponível" não distingue token
+                  vencido (alguém precisa gerar outro) de instabilidade passageira
+                  (é só recarregar) — que são as duas causas mais comuns. */}
+              {unavailable.some((u) => motivos[u]) && (
+                <ul className="mt-1.5 space-y-1 text-xs opacity-90 list-disc list-inside">
+                  {unavailable.filter((u) => motivos[u]).map((u) => (
+                    <li key={u}>{motivos[u]}</li>
+                  ))}
+                </ul>
+              )}
+              <span className="block text-xs opacity-80 mt-1.5">
+                Os cards dessas fontes ficam zerados até a leitura voltar — nunca exibem dados de outra edição.
+                <button onClick={() => refetch?.()} className="ml-1.5 underline underline-offset-2 hover:no-underline">
+                  Tentar de novo
+                </button>
               </span>
             </div>
           </div>

@@ -6,11 +6,42 @@
 //  - por campanha (período total, com reach): tabela + gráficos "Por Campanha".
 
 import { getEdition } from './_editions.js';
+import { fetchComRetry } from './_http.js';
 
 // Conta padrão das campanhas de webinar. Edições cuja mídia roda em outra conta
 // (ex.: a Calculadora de Líderes, na "inChurch - Principal") definem `metaAccount`.
 const DEFAULT_AD_ACCOUNT_ID = '1511142633474747'; // InChurch 03 [Cartão de crédito]
 const GRAPH_VERSION = 'v21.0';
+
+// Traduz o erro da Graph API para uma frase que diz O QUE FAZER. Antes o painel
+// mostrava só "Fonte de dados indisponível: Meta Ads", que não distingue token
+// vencido (precisa gerar outro) de instabilidade momentânea (é só esperar) — e o
+// token de acesso é justamente a causa que volta sozinha a cada ~60 dias.
+function erroDoMeta(e) {
+  const code = e.code;
+  const sub = e.error_subcode;
+  let msg;
+  if (code === 190) {
+    msg =
+      sub === 463
+        ? 'O token do Meta EXPIROU. Gere um novo token de longa duração e atualize a env var META_ACCESS_TOKEN na Vercel.'
+        : 'O token do Meta foi invalidado (senha alterada ou permissão revogada). Gere um novo e atualize META_ACCESS_TOKEN na Vercel.';
+  } else if (code === 200 || code === 10) {
+    msg = 'O token do Meta não tem permissão de ads_read nesta conta de anúncios.';
+  } else if (code === 4 || code === 17 || code === 613 || code === 80000) {
+    msg = 'A Graph API está limitando as requisições (rate limit). Costuma liberar sozinho em minutos.';
+  } else if (code === 2 || code === 1) {
+    msg = 'A Graph API está instável no momento. Tente de novo em alguns minutos.';
+  } else {
+    msg = e.message || 'Erro desconhecido da Graph API.';
+  }
+  const err = new Error(msg);
+  err.metaCode = code;
+  // Token vencido/sem permissão é problema de configuração e não passa sozinho:
+  // não vale cachear a resposta de erro na borda.
+  err.permanente = code === 190 || code === 200 || code === 10;
+  return err;
+}
 
 function actionVal(actions, type) {
   const a = (actions || []).find((x) => x.action_type === type);
@@ -39,9 +70,11 @@ async function fetchInsights(token, account, daily, since, until, match) {
   let url = `https://graph.facebook.com/${GRAPH_VERSION}/act_${account}/insights?` + new URLSearchParams(params);
   const all = [];
   for (let page = 0; page < 10 && url; page++) {
-    const r = await fetch(url);
+    // A Graph API devolve "Service temporarily unavailable" / "An unknown error
+    // occurred" com alguma frequência em consultas grandes; reenviar resolve.
+    const r = await fetchComRetry(url, { timeoutMs: 6000, orcamentoMs: 11000 });
     const j = await r.json();
-    if (j.error) throw new Error(j.error.message);
+    if (j.error) throw erroDoMeta(j.error);
     if (Array.isArray(j.data)) all.push(...j.data);
     url = j.paging && j.paging.next ? j.paging.next : null;
   }
@@ -93,7 +126,11 @@ function dedupConfere(dedup, gastoCampanhas, somaReach) {
 export default async function handler(req, res) {
   const token = process.env.META_ACCESS_TOKEN;
   if (!token) {
-    return res.status(500).json({ error: 'META_ACCESS_TOKEN não configurado na Vercel.' });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(500).json({
+      error: 'META_ACCESS_TOKEN não está configurado na Vercel (Settings → Environment Variables).',
+      permanente: true,
+    });
   }
 
   const ed = getEdition(req);
@@ -190,6 +227,12 @@ export default async function handler(req, res) {
       campanhas,
     });
   } catch (err) {
-    return res.status(500).json({ error: String(err) });
+    // Sem cache de borda no erro: assim o painel volta sozinho assim que a fonte
+    // se recupera, em vez de servir a falha pelos 5 minutos do s-maxage.
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(502).json({
+      error: String(err.message || err),
+      permanente: !!err.permanente,
+    });
   }
 }

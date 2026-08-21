@@ -20,6 +20,36 @@ export function isFullRange(r: DateRange, full: DateRange): boolean {
   return r.start === full.start && r.end === full.end;
 }
 
+// Data de HOJE em ISO, no fuso local de quem abre o painel.
+// `toISOString()` converteria para UTC e, à noite no Brasil, devolveria o dia
+// seguinte — o preset "Hoje" cairia num dia sem dado nenhum.
+export function hojeISO(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+// O intervalo tem atividade de verdade — alguém se inscreveu ou houve gasto?
+//
+// POR QUE IMPORTA: quando não tem, TODOS os cards mostram 0 e NENHUM aviso
+// aparece, porque nenhuma fonte falhou. Era o jeito mais comum de o painel
+// "carregar informação errada": numa edição encerrada o preset "Hoje" caía no
+// último dia da série (13/08 na edição de 13/07, 23/06 na de 15/06) e a tela
+// inteira zerava como se o webinar não tivesse existido.
+//
+// O teste é sobre INSCRIÇÕES e INVESTIMENTO de propósito, não sobre "qualquer
+// série": as edições encerradas têm um rabo de entradas e saídas de grupo semanas
+// depois da live, e uma única saída solta bastava para o intervalo passar por
+// "tem dado" enquanto todo o resto da tela mostrava zero. Esses dois são o que
+// sustenta o painel — sem eles, não há o que ler no período.
+export function rangeTemDados(series: DashboardSeries, r: DateRange): boolean {
+  const dentro = (d: string) => d >= r.start && d <= r.end;
+  for (const d of series.inscritos) if (dentro(d.data) && d.novos > 0) return true;
+  for (const d of series.meta) if (dentro(d.data) && (d.spend > 0 || d.impressions > 0)) return true;
+  return false;
+}
+
 const inRange = (d: string, r: DateRange) => d >= r.start && d <= r.end;
 
 // Recalcula os cards que têm série diária para o intervalo escolhido.

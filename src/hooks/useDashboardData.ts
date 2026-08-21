@@ -47,12 +47,48 @@ const ZERO_PESQUISAS: Partial<DashboardData> = { pesquisas: 0 };
 const ZERO_DIAG: Partial<DashboardData> = { diagnosticos: 0 };
 const ZERO_ICPS: Partial<DashboardData> = { icps: 0, icp: { p1: 0, p2: 0, p3: 0, p4: 0 } };
 
-async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[]): Promise<DashboardData> {
-  const fail = () => { unavailable.push('meta'); return { ...base, ...ZERO_META }; };
+// Motivo da indisponibilidade por fonte, para a tela dizer O QUE fazer em vez de
+// só "Fonte de dados indisponível".
+export type MotivosFonte = Record<string, string>;
+
+// GET com retry. Uma falha momentânea de rede zerava o card na hora e acendia o
+// aviso; com 6 fontes por edição (e 11 edições na tela Comparar) isso acontecia
+// com frequência mesmo estando tudo bem do outro lado.
+//
+// `permanente: true` na resposta (token do Meta vencido, planilha sem permissão)
+// significa que repetir não adianta — desiste na primeira.
+async function getJson(url: string, tentativas = 3): Promise<any> {
+  let motivo = 'Não foi possível ler esta fonte.';
+  for (let i = 0; i < tentativas; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 400 * Math.pow(3, i - 1))); // 400ms, 1,2s
+    try {
+      // SEM `cache: 'no-store'`: ele anulava o cache de borda que as próprias
+      // funções configuram (s-maxage=300), fazendo TODA visita ir até o Google
+      // Sheets — 44 downloads de planilha por abertura da tela Comparar, que é o
+      // caminho mais curto para tomar 429 e ver a tela "quebrar".
+      const res = await fetch(url);
+      const j = await res.json().catch(() => null);
+      if (res.ok && j && !j.error) return j;
+      if (j?.error) motivo = String(j.error);
+      else motivo = `A fonte respondeu ${res.status}.`;
+      if (j?.permanente) break; // não passa sozinho: não insiste
+    } catch {
+      motivo = 'Falha de rede ao ler esta fonte.';
+    }
+  }
+  const err: any = new Error(motivo);
+  err.motivo = motivo;
+  throw err;
+}
+
+async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+  const fail = (motivo?: string) => {
+    unavailable.push('meta');
+    if (motivo) motivos.meta = motivo;
+    return { ...base, ...ZERO_META };
+  };
   try {
-    const res = await fetch(`/api/meta?ed=${ed}`);
-    if (!res.ok) return fail();
-    const meta = await res.json();
+    const meta = await getJson(`/api/meta?ed=${ed}`);
     if (meta && typeof meta.investimentoTrafego === 'number' && typeof meta.leadsMeta === 'number') {
       if (Array.isArray(meta.porDia)) series.meta = meta.porDia;
       // A API respondeu, mas nenhuma campanha casou com o filtro da edição: os cards
@@ -73,8 +109,8 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed
       };
     }
     return fail();
-  } catch {
-    return fail();
+  } catch (e: any) {
+    return fail(e?.motivo);
   }
 }
 
@@ -83,23 +119,19 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed
 // snapshot" (a SendAPI bloqueia a conta por 24h quando recebe requisições demais).
 // Se a função não estiver disponível (ex.: `vite dev`, sem serverless) ou a edição
 // ainda não estiver no snapshot, o card zera e entra no aviso de fonte indisponível.
-async function applySendflowMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[]): Promise<DashboardData> {
+async function applySendflowMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
   try {
-    // Sem `no-store`: deixa o cache de borda/navegador servir.
-    const res = await fetch(`/api/sendflow?ed=${ed}`);
-    if (res.ok) {
-      const sf = await res.json();
-      if (sf && typeof sf.entradasGrupo === 'number') {
-        if (Array.isArray(sf.porDia)) series.grupo = sf.porDia;
-        return {
-          ...base,
-          entradasGrupo: sf.entradasGrupo,
-          ...(typeof sf.saidas === 'number' ? { saidasGrupo: sf.saidas } : {}),
-        };
-      }
+    const sf = await getJson(`/api/sendflow?ed=${ed}`);
+    if (sf && typeof sf.entradasGrupo === 'number') {
+      if (Array.isArray(sf.porDia)) series.grupo = sf.porDia;
+      return {
+        ...base,
+        entradasGrupo: sf.entradasGrupo,
+        ...(typeof sf.saidas === 'number' ? { saidasGrupo: sf.saidas } : {}),
+      };
     }
-  } catch {
-    // cai no tratamento de indisponível abaixo
+  } catch (e: any) {
+    if (e?.motivo) motivos.sendflow = e.motivo;
   }
   unavailable.push('sendflow');
   return { ...base, ...ZERO_SENDFLOW };
@@ -108,12 +140,14 @@ async function applySendflowMetrics(base: DashboardData, series: DashboardSeries
 // "Total de Inscritos" vem da planilha Inscritos_29_06, deduplicado por e-mail
 // no servidor (/api/inscritos, que não expõe dados pessoais). Fallback: mantém o
 // valor que veio da planilha de métricas.
-async function applyInscritosMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[]): Promise<DashboardData> {
-  const fail = () => { unavailable.push('inscritos'); return { ...base, ...ZERO_INSCRITOS }; };
+async function applyInscritosMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+  const fail = (motivo?: string) => {
+    unavailable.push('inscritos');
+    if (motivo) motivos.inscritos = motivo;
+    return { ...base, ...ZERO_INSCRITOS };
+  };
   try {
-    const res = await fetch(`/api/inscritos?ed=${ed}`, { cache: 'no-store' });
-    if (!res.ok) return fail();
-    const info = await res.json();
+    const info = await getJson(`/api/inscritos?ed=${ed}`);
     if (info && typeof info.inscritos === 'number') {
       if (Array.isArray(info.porDia)) series.inscritos = info.porDia;
       if (Array.isArray(info.porDiaAds)) series.inscritosAds = info.porDiaAds;
@@ -124,58 +158,64 @@ async function applyInscritosMetrics(base: DashboardData, series: DashboardSerie
       };
     }
     return fail();
-  } catch {
-    return fail();
+  } catch (e: any) {
+    return fail(e?.motivo);
   }
 }
 
 // "Total de Pesquisas" vem da planilha de pesquisa (aba "Pesquisa - Webinar IA na
 // Igreja"), deduplicado por e-mail e só a partir de 19/06/2026 — processado no
 // servidor (/api/pesquisas). Fallback: valor da planilha de métricas.
-async function applyPesquisasMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[]): Promise<DashboardData> {
-  const fail = () => { unavailable.push('pesquisas'); return { ...base, ...ZERO_PESQUISAS }; };
+async function applyPesquisasMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+  const fail = (motivo?: string) => {
+    unavailable.push('pesquisas');
+    if (motivo) motivos.pesquisas = motivo;
+    return { ...base, ...ZERO_PESQUISAS };
+  };
   try {
-    const res = await fetch(`/api/pesquisas?ed=${ed}`, { cache: 'no-store' });
-    if (!res.ok) return fail();
-    const info = await res.json();
+    const info = await getJson(`/api/pesquisas?ed=${ed}`);
     if (info && typeof info.pesquisas === 'number') {
       if (Array.isArray(info.porDia)) series.pesquisas = info.porDia;
       return { ...base, pesquisas: info.pesquisas };
     }
     return fail();
-  } catch {
-    return fail();
+  } catch (e: any) {
+    return fail(e?.motivo);
   }
 }
 
 // "Diagnósticos" vem da planilha de diagnósticos, deduplicado por e-mail no
 // servidor (/api/diagnosticos), dentro da janela da edição (04–12/07). Guarda a
 // série por dia para o filtro de período. Fallback: valor da planilha de métricas.
-async function applyDiagnosticosMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[]): Promise<DashboardData> {
-  const fail = () => { unavailable.push('diagnosticos'); return { ...base, ...ZERO_DIAG }; };
+async function applyDiagnosticosMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+  const fail = (motivo?: string) => {
+    unavailable.push('diagnosticos');
+    if (motivo) motivos.diagnosticos = motivo;
+    return { ...base, ...ZERO_DIAG };
+  };
   try {
-    const res = await fetch(`/api/diagnosticos?ed=${ed}`, { cache: 'no-store' });
-    if (!res.ok) return fail();
-    const info = await res.json();
+    const info = await getJson(`/api/diagnosticos?ed=${ed}`);
     if (info && typeof info.diagnosticos === 'number') {
       if (Array.isArray(info.porDia)) series.diagnosticos = info.porDia;
       return { ...base, diagnosticos: info.diagnosticos };
     }
     return fail();
-  } catch {
-    return fail();
+  } catch (e: any) {
+    return fail(e?.motivo);
   }
 }
 
 // "Total de ICPs" (P1–P4) vem da planilha de pesquisa, classificado e deduplicado
 // por e-mail no servidor (/api/icps). Sobrescreve o total e guarda o detalhamento
 // P1–P4 para o gráfico do card. Fallback: valor da planilha de métricas.
-async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[]): Promise<DashboardData> {
-  const fail = () => { unavailable.push('icps'); return { ...base, ...ZERO_ICPS }; };
+async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+  const fail = (motivo?: string) => {
+    unavailable.push('icps');
+    if (motivo) motivos.icps = motivo;
+    return { ...base, ...ZERO_ICPS };
+  };
   try {
-    const res = await fetch(`/api/icps?ed=${ed}`, { cache: 'no-store' });
-    if (!res.ok) return fail();
-    const info = await res.json();
+    const info = await getJson(`/api/icps?ed=${ed}`);
     if (info && typeof info.icps === 'number') {
       if (Array.isArray(info.porDia)) series.icps = info.porDia;
       return {
@@ -185,33 +225,47 @@ async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries, ed
       };
     }
     return fail();
-  } catch {
-    return fail();
+  } catch (e: any) {
+    return fail(e?.motivo);
   }
 }
 
 // Busca a planilha-base e roda o pipeline de UMA edição. Retorna os TOTAIS do
 // período (sem filtro de data) + a série diária. Reutilizado pelo dashboard e pela
 // tela de comparação.
-export async function loadEditionData(edition: string): Promise<{ data: DashboardData; series: DashboardSeries; unavailable: string[] }> {
+export async function loadEditionData(edition: string): Promise<{ data: DashboardData; series: DashboardSeries; unavailable: string[]; motivos: MotivosFonte }> {
   const values = { ...BASE_ZERO };
   const s: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
   // Fontes cuja API por edição falhou — ficam ZERADAS (sem herdar a planilha-base
   // de outro webinar) e viram aviso na tela.
   const unavailable: string[] = [];
-  let d = await applyMetaMetrics(values, s, edition, unavailable);
-  d = await applySendflowMetrics(d, s, edition, unavailable);
-  d = await applyInscritosMetrics(d, s, edition, unavailable);
-  d = await applyPesquisasMetrics(d, s, edition, unavailable);
-  d = await applyDiagnosticosMetrics(d, s, edition, unavailable);
-  d = await applyIcpsMetrics(d, s, edition, unavailable);
+  const motivos: MotivosFonte = {};
+  // Em paralelo: são 6 fontes independentes, e em série a tela Comparar somava as
+  // seis latências vezes onze edições.
+  const partes = await Promise.all([
+    applyMetaMetrics(values, s, edition, unavailable, motivos),
+    applySendflowMetrics(values, s, edition, unavailable, motivos),
+    applyInscritosMetrics(values, s, edition, unavailable, motivos),
+    applyPesquisasMetrics(values, s, edition, unavailable, motivos),
+    applyDiagnosticosMetrics(values, s, edition, unavailable, motivos),
+    applyIcpsMetrics(values, s, edition, unavailable, motivos),
+  ]);
+  // Cada apply* devolve a base INTEIRA com os seus campos por cima, então não dá
+  // para espalhar um sobre o outro: o último sobrescreveria os campos do Meta com
+  // os zeros da base. Junta-se só o que cada um de fato mudou.
+  let d: DashboardData = { ...values };
+  for (const parte of partes) {
+    for (const [k, v] of Object.entries(parte)) {
+      if (v !== (values as any)[k]) (d as any)[k] = v;
+    }
+  }
   // Deriva os totais do PERÍODO COMPLETO (impressões, LPV, CTR, CPC, CPM, Conv.
   // Captura, Connect Rate, CPL Real) com a MESMA função do painel, para que a tela
   // de Comparar mostre esses campos (que não vêm prontos da API do Meta) e fique
   // consistente com o painel single. Com o range completo, os totais de série
   // (inscritos, pesquisas etc.) são idênticos aos já calculados.
   const data = s.meta.length || s.inscritos.length ? applyDateFilter(d, s, fullRange(s)) : d;
-  return { data, series: s, unavailable };
+  return { data, series: s, unavailable, motivos };
 }
 
 export function useDashboardData(edition: string) {
@@ -221,14 +275,16 @@ export function useDashboardData(edition: string) {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState<string[]>([]);
+  const [motivos, setMotivos] = useState<MotivosFonte>({});
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, series, unavailable } = await loadEditionData(edition);
+      const { data, series, unavailable, motivos } = await loadEditionData(edition);
       setData(data);
       setSeries(series);
       setUnavailable(unavailable);
+      setMotivos(motivos);
       setError(null);
       setHasLoaded(true);
     } catch (err: any) {
@@ -254,7 +310,7 @@ export function useDashboardData(edition: string) {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  return { data, series, loading, hasLoaded, error, unavailable, refetch: fetchData, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
+  return { data, series, loading, hasLoaded, error, unavailable, motivos, refetch: fetchData, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
 }
 
 // Carrega os totais de TODAS as edições em paralelo (para a tela de comparação).
