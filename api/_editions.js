@@ -257,10 +257,12 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign', // campanha inteira (entradas e saídas por dia)
     sendflowDesde: '2026-07-04',
-    // Fecha em 31/07: sobrou 1 entrada solta em 13/08 (quase um mes depois da live)
-    // que esticava "Todo o periodo desta edicao" ate 13/08 e deixava os graficos por
-    // dia com um vazio de 4 semanas.
-    sendflowAte: '2026-07-31',
+    // SEM `sendflowAte` de proposito. Ha 1 entrada solta em 13/08 que estica "Todo o
+    // periodo desta edicao" ate 13/08 e deixa um vazio de 4 semanas nos graficos por
+    // dia -- feio, mas fechar a janela custa caro: o corte vale para adds E removes,
+    // e em 31/07 ele descartava 41 SAIDAS reais do grupo (186 -> 145). Saida de grupo
+    // e retencao, continua acontecendo semanas depois da live; a data feia no rotulo
+    // e o preco de nao esconder isso.
     // Diagnósticos do 13/07: até a véspera do próximo webinar (Trilha 20/07). A
     // janela era ABERTA (null) e engolia inteiras as edições 20/07, 27/07, 03/08 e
     // 10/08 — o card mostrava 247 diagnósticos, dos quais só 24 eram desta edição.
