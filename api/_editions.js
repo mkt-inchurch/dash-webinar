@@ -202,7 +202,12 @@ export const EDITIONS = {
     pesquisaDesde: '2026-07-21',
     pesquisaAte: '2026-08-03',
     pesquisaUtmMatch: 'WEBINAR_TRILHA',
-    pesquisaUtmExclude: '_17_AGO',
+    // Exclui as utms PRÓPRIAS das turmas seguintes. A captação do 17/08 começou em
+    // 31/07 e a do 31/08 reusa o mesmo prefixo — as duas caem dentro da janela de
+    // data desta edição, e sem o exclude a mesma resposta contaria em duas.
+    // Hoje o corte de data já segura o `_31_AGO` (as respostas dessa turma começaram
+    // em 19/08); a linha está aqui para que a próxima turma não dependa disso.
+    pesquisaUtmExclude: ['_17_AGO', '_31_AGO'],
     // Pos-webinar do 03/08: as respostas de 04 a 16/08 que vieram com o token generico
     // (sem o sufixo da turma) sao desta edicao -- de 17/08 em diante ja sao da turma
     // seguinte. Igualdade exata, entao nao rouba as respostas com _17_AGO/_31_AGO.

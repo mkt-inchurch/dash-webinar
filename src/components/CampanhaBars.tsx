@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { motion } from 'framer-motion';
 import { Campanha } from '../types';
 import { formatCurrency, formatNumber } from '../lib/utils';
-import { useTheme, chartPalette } from '../lib/theme';
+import { CHART } from '../lib/theme';
 
 // Nome curto: último trecho após "|" (ex.: "29_06 [2]"); trunca.
 function shortName(name: string): string {
@@ -22,8 +22,7 @@ interface BarsProps {
 }
 
 const HBars: FC<BarsProps> = ({ title, campanhas, pick, format, ascending }) => {
-  const { theme } = useTheme();
-  const p = chartPalette(theme);
+  const p = CHART;
   const tip = {
     contentStyle: { backgroundColor: p.tooltipBg, borderColor: p.tooltipBorder, borderRadius: '8px', color: p.tooltipText, fontSize: 12 },
     cursor: { fill: p.cursor },

@@ -5,8 +5,9 @@
 //   npm run build && node scripts/dev-local.mjs      # http://localhost:4178
 //
 // /api/* é atendido pelos handlers deste repo (mesmo código da Vercel). O único que
-// exige segredo é o /api/meta (META_ACCESS_TOKEN): sem token no ambiente, ele é
-// encaminhado para a produção, só para a tela ter com o que desenhar os cards.
+// exigem segredo são /api/meta e /api/cobertura (META_ACCESS_TOKEN): sem token no
+// ambiente, eles são encaminhados para a produção, só para a tela ter com o que
+// desenhar os cards.
 
 import express from 'express';
 import path from 'path';
@@ -24,6 +25,7 @@ const rotas = {
   '/api/icps': () => import('../api/icps.js'),
   '/api/diagnosticos': () => import('../api/diagnosticos.js'),
   '/api/utms': () => import('../api/utms.js'),
+  '/api/cobertura': () => import('../api/cobertura.js'),
 };
 
 const app = express();
@@ -31,7 +33,7 @@ const app = express();
 for (const [rota, carregar] of Object.entries(rotas)) {
   app.get(rota, async (req, res) => {
     // Sem token do Meta em dev: usa a produção para não deixar a tela vazia.
-    if (rota === '/api/meta' && !process.env.META_ACCESS_TOKEN) {
+    if ((rota === '/api/meta' || rota === '/api/cobertura') && !process.env.META_ACCESS_TOKEN) {
       const r = await fetch(`${PROD}${req.originalUrl}`);
       res.status(r.status).json(await r.json());
       return;

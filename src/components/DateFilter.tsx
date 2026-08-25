@@ -82,7 +82,7 @@ export const DateFilter: FC<DateFilterProps> = ({ range, full, onChange }) => {
                 (off
                   ? 'bg-bg-card border border-bg-card-border text-fg-faint cursor-not-allowed opacity-50'
                   : active
-                    ? 'bg-in-green text-black'
+                    ? 'bg-in-green text-[#1A1A1A]'
                     : 'bg-bg-card border border-bg-card-border text-fg-muted hover:bg-bg-card-hover')
               }
             >
@@ -94,7 +94,7 @@ export const DateFilter: FC<DateFilterProps> = ({ range, full, onChange }) => {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2 text-fg-muted">
-          <Calendar className={'w-4 h-4 ' + (custom ? 'text-in-green' : 'text-fg-subtle')} />
+          <Calendar className={'w-4 h-4 ' + (custom ? 'text-in-green-text' : 'text-fg-subtle')} />
           <span className="text-sm font-medium hidden sm:inline">Personalizado</span>
         </div>
         <input

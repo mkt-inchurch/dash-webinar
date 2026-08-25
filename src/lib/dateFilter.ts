@@ -105,5 +105,14 @@ export function applyDateFilter(base: DashboardData, series: DashboardSeries, r:
     ? out.investimentoTrafego / out.inscritosAds
     : 0;
 
+  // Conv. Captura REAL = Inscritos ADS ÷ LPV. A `convPagina` acima usa os leads do
+  // PIXEL, que na conta da inChurch é global e conta conversões de outros
+  // formulários do site — ela sai entre 25% e 62%, enquanto a conversão real da
+  // página fica entre 18% e 35%. As duas ficam na tela: a real decide, a do pixel
+  // serve para medir o quanto o pixel está inflando.
+  out.convPaginaReal = out.lpv && out.lpv > 0 && out.inscritosAds != null
+    ? out.inscritosAds / out.lpv
+    : 0;
+
   return out;
 }

@@ -2,7 +2,7 @@ import { FC } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { useTheme, chartPalette } from '../lib/theme';
+import { CHART } from '../lib/theme';
 
 interface MetricChartProps {
   title: string;
@@ -14,8 +14,7 @@ interface MetricChartProps {
 // Gráfico de evolução por dia (mesma linguagem visual do "Gasto R$"), aberto ao
 // clicar num card. Um único gráfico, em seção própria acima da "Tendência".
 export const MetricChart: FC<MetricChartProps> = ({ title, data, fmt, onClose }) => {
-  const { theme } = useTheme();
-  const p = chartPalette(theme);
+  const p = CHART;
   const AXIS = { fill: p.axis, fontSize: 11 };
   const gid = 'gMetric';
 

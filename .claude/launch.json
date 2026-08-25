@@ -12,9 +12,10 @@
     },
     {
       "name": "dash-webinar (com /api)",
-      "runtimeExecutable": "node",
+      "runtimeExecutable": "npm",
       "runtimeArgs": [
-        "scripts/dev-local.mjs"
+        "run",
+        "dev:local"
       ],
       "port": 4178
     }

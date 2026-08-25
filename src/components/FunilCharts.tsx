@@ -3,7 +3,7 @@ import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, Responsive
 import { motion } from 'framer-motion';
 import { DashboardData, DiaContagem } from '../types';
 import { formatNumber } from '../lib/utils';
-import { useTheme, chartPalette } from '../lib/theme';
+import { CHART } from '../lib/theme';
 
 const ddmm = (iso: string) => {
   const [, m, d] = iso.split('-');
@@ -20,8 +20,7 @@ const Card: FC<{ title: string; children: ReactNode }> = ({ title, children }) =
 );
 
 export const FunilCharts: FC<{ data: DashboardData; inscritosSerie: DiaContagem[] }> = ({ data, inscritosSerie }) => {
-  const { theme } = useTheme();
-  const p = chartPalette(theme);
+  const p = CHART;
   const AXIS = { fill: p.axis, fontSize: 11 };
   const tip = {
     contentStyle: { backgroundColor: p.tooltipBg, borderColor: p.tooltipBorder, borderRadius: '8px', color: p.tooltipText, fontSize: 12 },

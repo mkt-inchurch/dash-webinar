@@ -10,11 +10,18 @@ export interface Edition {
   // entender que ninguém respondeu, quando na verdade a etapa não existe.
   // Espelha `pesquisaFonte: 'nenhuma'` em api/_editions.js.
   semPesquisas?: boolean;
+  // Edições que tiram os diagnósticos de uma COLUNA da própria planilha de leads,
+  // em vez da planilha compartilhada entre todos os webinars. Elas ficam fora da
+  // checagem de "diagnóstico contado em duas edições": dois registros de planilhas
+  // diferentes no mesmo dia não são o mesmo diagnóstico, e sem esta marca a
+  // auditoria acusava sobreposição onde não há nenhuma.
+  // Espelha `diagFonte: 'inscritos'` em api/_editions.js.
+  diagPropria?: boolean;
 }
 
 // Mais recente primeiro (a primeira também é o rótulo padrão do seletor).
 export const EDITIONS: Edition[] = [
-  { id: 'calculadora-lideres', label: 'Calculadora de Líderes', semPesquisas: true },
+  { id: 'calculadora-lideres', label: 'Calculadora de Líderes', semPesquisas: true, diagPropria: true },
   { id: 'webinar-31-08', label: 'Webinar Trilha 31/08' },
   { id: 'webinar-24-08', label: 'Webinar Igreja Digital 24/08' },
   { id: 'webinar-17-08', label: 'Webinar Trilha 17/08' },

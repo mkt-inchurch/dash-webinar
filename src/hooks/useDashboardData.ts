@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { DashboardData, DashboardSeries } from '../types';
 import { EDITIONS } from '../lib/editions';
 import { fullRange, applyDateFilter } from '../lib/dateFilter';
+import { Cobertura } from '../lib/auditoria';
 
 const EMPTY_SERIES: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
 
@@ -119,11 +120,14 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed
 // snapshot" (a SendAPI bloqueia a conta por 24h quando recebe requisições demais).
 // Se a função não estiver disponível (ex.: `vite dev`, sem serverless) ou a edição
 // ainda não estiver no snapshot, o card zera e entra no aviso de fonte indisponível.
-async function applySendflowMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+async function applySendflowMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte, meta: { sendflowGeradoEm?: string }): Promise<DashboardData> {
   try {
     const sf = await getJson(`/api/sendflow?ed=${ed}`);
     if (sf && typeof sf.entradasGrupo === 'number') {
       if (Array.isArray(sf.porDia)) series.grupo = sf.porDia;
+      // Quando o snapshot do Sendflow foi coletado. A auditoria usa isso para
+      // avisar que o card congelou quando o job de hora em hora para de rodar.
+      if (typeof sf.geradoEm === 'string') meta.sendflowGeradoEm = sf.geradoEm;
       return {
         ...base,
         entradasGrupo: sf.entradasGrupo,
@@ -233,18 +237,27 @@ async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries, ed
 // Busca a planilha-base e roda o pipeline de UMA edição. Retorna os TOTAIS do
 // período (sem filtro de data) + a série diária. Reutilizado pelo dashboard e pela
 // tela de comparação.
-export async function loadEditionData(edition: string): Promise<{ data: DashboardData; series: DashboardSeries; unavailable: string[]; motivos: MotivosFonte }> {
+export interface EdicaoCarregada {
+  data: DashboardData;
+  series: DashboardSeries;
+  unavailable: string[];
+  motivos: MotivosFonte;
+  sendflowGeradoEm?: string;
+}
+
+export async function loadEditionData(edition: string): Promise<EdicaoCarregada> {
   const values = { ...BASE_ZERO };
   const s: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
   // Fontes cuja API por edição falhou — ficam ZERADAS (sem herdar a planilha-base
   // de outro webinar) e viram aviso na tela.
   const unavailable: string[] = [];
   const motivos: MotivosFonte = {};
+  const extra: { sendflowGeradoEm?: string } = {};
   // Em paralelo: são 6 fontes independentes, e em série a tela Comparar somava as
   // seis latências vezes onze edições.
   const partes = await Promise.all([
     applyMetaMetrics(values, s, edition, unavailable, motivos),
-    applySendflowMetrics(values, s, edition, unavailable, motivos),
+    applySendflowMetrics(values, s, edition, unavailable, motivos, extra),
     applyInscritosMetrics(values, s, edition, unavailable, motivos),
     applyPesquisasMetrics(values, s, edition, unavailable, motivos),
     applyDiagnosticosMetrics(values, s, edition, unavailable, motivos),
@@ -265,7 +278,41 @@ export async function loadEditionData(edition: string): Promise<{ data: Dashboar
   // consistente com o painel single. Com o range completo, os totais de série
   // (inscritos, pesquisas etc.) são idênticos aos já calculados.
   const data = s.meta.length || s.inscritos.length ? applyDateFilter(d, s, fullRange(s)) : d;
-  return { data, series: s, unavailable, motivos };
+  return { data, series: s, unavailable, motivos, ...extra };
+}
+
+// Cadência da atualização automática.
+//
+// ATÉ AQUI: o painel buscava tudo de novo a cada 30 min e não dizia quando tinha
+// buscado. Na prática, quem deixava a aba aberta lia números de meia hora atrás
+// achando que eram de agora, e a única forma de saber se estavam certos era
+// conferir na mão — que é o que este arquivo (junto com src/lib/auditoria.ts)
+// existe para acabar.
+//
+// AGORA: 2 min na edição aberta e 10 min na tela de Comparar, mais um refetch
+// imediato toda vez que a aba volta para o primeiro plano. Isso NÃO multiplica a
+// carga nas fontes: as funções /api/* respondem com `s-maxage=300`, então o cache
+// de borda da Vercel absorve os polls e a planilha/Graph API continua sendo lida
+// no máximo uma vez a cada 5 min por região — o mesmo volume de antes. O Sendflow
+// nem isso: /api/sendflow serve o snapshot horário do GitHub Actions.
+const INTERVALO_PAINEL = 2 * 60 * 1000;
+const INTERVALO_COMPARAR = 10 * 60 * 1000;
+
+// Dispara `fn` no intervalo pedido, só com a aba visível, e também no instante em
+// que ela volta a ficar visível (é quando alguém realmente vai olhar o número).
+function useAutoRefresh(fn: () => void, intervalo: number) {
+  useEffect(() => {
+    const visivel = () => typeof document === 'undefined' || !document.hidden;
+    const id = setInterval(() => { if (visivel()) fn(); }, intervalo);
+    const aoVoltar = () => { if (visivel()) fn(); };
+    document.addEventListener('visibilitychange', aoVoltar);
+    window.addEventListener('focus', aoVoltar);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', aoVoltar);
+      window.removeEventListener('focus', aoVoltar);
+    };
+  }, [fn, intervalo]);
 }
 
 export function useDashboardData(edition: string) {
@@ -276,17 +323,24 @@ export function useDashboardData(edition: string) {
   const [error, setError] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [motivos, setMotivos] = useState<MotivosFonte>({});
+  const [sendflowGeradoEm, setSendflowGeradoEm] = useState<string | undefined>();
+  // Quando esta tela terminou de ler as fontes com sucesso. Vai para o chip
+  // "atualizado há X" no topo — sem ele não dá para distinguir um painel fresco
+  // de um que parou de atualizar há horas.
+  const [atualizadoEm, setAtualizadoEm] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, series, unavailable, motivos } = await loadEditionData(edition);
-      setData(data);
-      setSeries(series);
-      setUnavailable(unavailable);
-      setMotivos(motivos);
+      const r = await loadEditionData(edition);
+      setData(r.data);
+      setSeries(r.series);
+      setUnavailable(r.unavailable);
+      setMotivos(r.motivos);
+      setSendflowGeradoEm(r.sendflowGeradoEm);
       setError(null);
       setHasLoaded(true);
+      setAtualizadoEm(Date.now());
     } catch (err: any) {
       console.error('Falha ao carregar a edição', err);
       // Sem fallback para dados simulados: e melhor a tela zerada + aviso do que
@@ -299,34 +353,50 @@ export function useDashboardData(edition: string) {
     }
   }, [edition]);
 
-  useEffect(() => {
-    fetchData();
-    // Auto-refresh a cada 30 min (era 5 min). Os dados mudam devagar e o polling
-    // curto socava a API da Sendflow, que bloqueia a chave por 24h. Só refaz quando
-    // a aba está visível — abas de fundo abertas o dia todo não geram requisição.
-    const interval = setInterval(() => {
-      if (typeof document === 'undefined' || !document.hidden) fetchData();
-    }, 30 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
+  useAutoRefresh(fetchData, INTERVALO_PAINEL);
 
-  return { data, series, loading, hasLoaded, error, unavailable, motivos, refetch: fetchData, needsAuth: false, handleLogin: () => {}, handleLogout: () => {}, user: null };
+  return { data, series, loading, hasLoaded, error, unavailable, motivos, sendflowGeradoEm, atualizadoEm, refetch: fetchData };
 }
 
 // Carrega os totais de TODAS as edições em paralelo (para a tela de comparação).
+// Guarda também as SÉRIES diárias: a auditoria cruzada precisa delas para detectar
+// dia de mídia contado em duas edições e diagnóstico caindo em duas janelas — que
+// é o tipo de erro que a conferência de uma edição isolada nunca pega.
+export interface LinhaComparacao {
+  id: string;
+  label: string;
+  data: DashboardData;
+  series: DashboardSeries;
+  unavailable: string[];
+}
+
 export function useEditionsComparison() {
-  const [rows, setRows] = useState<{ id: string; label: string; data: DashboardData }[]>([]);
+  const [rows, setRows] = useState<LinhaComparacao[]>([]);
+  const [cobertura, setCobertura] = useState<Cobertura | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [atualizadoEm, setAtualizadoEm] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await Promise.all(
-        EDITIONS.map(async (e) => ({ id: e.id, label: e.label, data: (await loadEditionData(e.id)).data }))
-      );
+      const [res, cob] = await Promise.all([
+        Promise.all(
+          EDITIONS.map(async (e) => {
+            const r = await loadEditionData(e.id);
+            return { id: e.id, label: e.label, data: r.data, series: r.series, unavailable: r.unavailable };
+          })
+        ),
+        // Cobertura de mídia: gasto TOTAL da conta em campanhas de webinar, sem
+        // recorte de edição. Se falhar, a comparação continua — só a checagem de
+        // "mídia fora do painel" fica de fora.
+        getJson('/api/cobertura').catch(() => null),
+      ]);
       setRows(res);
+      setCobertura(cob && typeof cob.total === 'number' ? cob : null);
       setError(null);
+      setAtualizadoEm(Date.now());
     } catch (err: any) {
       console.error('Falha ao comparar edições', err);
       setError('Erro ao carregar as edições.');
@@ -336,7 +406,7 @@ export function useEditionsComparison() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useAutoRefresh(load, INTERVALO_COMPARAR);
 
-  return { rows, loading, error, refetch: load };
+  return { rows, cobertura, loading, error, atualizadoEm, refetch: load };
 }
-

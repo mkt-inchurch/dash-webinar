@@ -40,7 +40,7 @@ export const KPICard: FC<KPICardProps> = ({ title, value, valueSuffix, subtitle,
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-fg-muted">{title}</h3>
         {icon && (
-          <div className={cn("p-1.5 rounded-lg", highlight ? "bg-in-green text-black" : "bg-bg-card-border text-in-green")}>
+          <div className={cn("p-1.5 rounded-lg", highlight ? "bg-in-green text-[#1A1A1A]" : "bg-bg-card-border text-in-green-text")}>
             {icon}
           </div>
         )}
@@ -48,7 +48,7 @@ export const KPICard: FC<KPICardProps> = ({ title, value, valueSuffix, subtitle,
 
       <div>
         <div className="flex items-baseline gap-2 mb-1">
-          <span className={cn("text-2xl font-bold tracking-tight", highlight ? "text-in-green" : "text-fg")}>
+          <span className={cn("text-2xl font-bold tracking-tight", highlight ? "text-in-green-text" : "text-fg")}>
             {value}
           </span>
           {valueSuffix}

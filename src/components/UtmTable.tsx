@@ -82,7 +82,7 @@ export const UtmTable: FC<{ edition: string; totalPesquisas?: number }> = ({ edi
       {/* Cabeçalho + seletor de dimensão */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-fg uppercase tracking-wide">
-          <Link2 className="w-4 h-4 text-in-green" /> UTM × Prioridade
+          <Link2 className="w-4 h-4 text-in-green-text" /> UTM × Prioridade
         </h3>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
@@ -93,7 +93,7 @@ export const UtmTable: FC<{ edition: string; totalPesquisas?: number }> = ({ edi
                   key={d.id}
                   onClick={() => setDim(d.id)}
                   className={cn('px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-                    dim === d.id ? 'bg-in-green text-black' : 'text-fg-muted hover:text-fg')}
+                    dim === d.id ? 'bg-in-green text-[#1A1A1A]' : 'text-fg-muted hover:text-fg')}
                 >
                   {d.label}
                 </button>
@@ -118,7 +118,7 @@ export const UtmTable: FC<{ edition: string; totalPesquisas?: number }> = ({ edi
                     onClick={() => onSort('nome')}
                     className="px-3 py-2.5 text-left font-medium text-fg-subtle whitespace-nowrap cursor-pointer select-none hover:text-fg uppercase"
                   >
-                    {dim} <span className="text-in-green">{arrow('nome')}</span>
+                    {dim} <span className="text-in-green-text">{arrow('nome')}</span>
                   </th>
                   {COLS.map((c) => (
                     <th
@@ -126,7 +126,7 @@ export const UtmTable: FC<{ edition: string; totalPesquisas?: number }> = ({ edi
                       onClick={() => onSort(c.key)}
                       className="px-3 py-2.5 text-right font-medium text-fg-subtle whitespace-nowrap cursor-pointer select-none hover:text-fg"
                     >
-                      {c.label} <span className="text-in-green">{arrow(c.key)}</span>
+                      {c.label} <span className="text-in-green-text">{arrow(c.key)}</span>
                     </th>
                   ))}
                 </tr>
@@ -134,14 +134,14 @@ export const UtmTable: FC<{ edition: string; totalPesquisas?: number }> = ({ edi
               <tbody>
                 {sorted.map((r) => (
                   <tr key={r.nome} className="border-b border-bg-card-border/50 hover:bg-bg-card-hover">
-                    <td className="px-3 py-2.5 text-left text-in-green font-medium max-w-[280px] truncate" title={r.nome}>{r.nome}</td>
+                    <td className="px-3 py-2.5 text-left text-in-green-text font-medium max-w-[280px] truncate" title={r.nome}>{r.nome}</td>
                     <td className="px-3 py-2.5 text-right text-fg font-semibold tabular-nums">{r.total}</td>
                     <td className="px-3 py-2.5 text-right text-fg-muted tabular-nums">{r.p1}</td>
                     <td className="px-3 py-2.5 text-right text-fg-muted tabular-nums">{r.p2}</td>
                     <td className="px-3 py-2.5 text-right text-fg-muted tabular-nums">{r.p3}</td>
                     <td className="px-3 py-2.5 text-right text-fg-muted tabular-nums">{r.p4}</td>
                     <td className="px-3 py-2.5 text-right text-fg-muted tabular-nums">{r.desq}</td>
-                    <td className="px-3 py-2.5 text-right text-in-green font-semibold tabular-nums">{r.pMQL}%</td>
+                    <td className="px-3 py-2.5 text-right text-in-green-text font-semibold tabular-nums">{r.pMQL}%</td>
                     <td className="px-3 py-2.5 text-right text-red-500 tabular-nums">{r.pDESQ}%</td>
                   </tr>
                 ))}
@@ -170,7 +170,7 @@ export const UtmTable: FC<{ edition: string; totalPesquisas?: number }> = ({ edi
             <div className="flex flex-col sm:flex-row sm:items-center gap-x-6 gap-y-1 mt-4 pt-3 border-t border-bg-card-border text-xs">
               {resp?.melhor && (
                 <span className="flex items-center gap-1.5 text-fg-muted">
-                  <CircleDot className="w-3.5 h-3.5 text-in-green" /> Melhor qualidade:
+                  <CircleDot className="w-3.5 h-3.5 text-in-green-text" /> Melhor qualidade:
                   <span className="text-fg font-medium">{resp.melhor.nome}</span>
                   <span className="text-fg-subtle">({resp.melhor.pMQL}% MQL, {resp.melhor.total} leads)</span>
                 </span>

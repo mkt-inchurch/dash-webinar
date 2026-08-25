@@ -1,84 +1,20 @@
 import { FC, Fragment, ReactNode, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { DashboardData } from '../types';
 import { useEditionsComparison } from '../hooks/useDashboardData';
-import { useTheme, chartPalette } from '../lib/theme';
-import { formatCurrency, formatNumber, formatCompact, formatPercent, cn } from '../lib/utils';
+import { CHART } from '../lib/theme';
+import { formatCompact, cn } from '../lib/utils';
+import { SECTIONS, CHARTS, shortLabel, bestIndex } from '../lib/metricas';
+import { auditarComparacao } from '../lib/auditoria';
+import { AuditoriaPanel } from './AuditoriaPanel';
+import { EditionDuel } from './EditionDuel';
 
-type Better = 'higher' | 'lower' | 'none';
-interface Metric {
-  key: string;
-  label: string;
-  get: (d: DashboardData) => number;
-  fmt: (v: number) => string;
-  better: Better;
-}
-
-const pct = (v: number) => formatPercent(v ?? 0);
-const freq = (v: number) => (v ?? 0).toFixed(2);
-
-// Métrica → como ler/formatar/comparar. `better` define qual valor é destacado.
-const SECTIONS: { title: string; metrics: Metric[] }[] = [
-  {
-    title: 'Funil do Webinar',
-    metrics: [
-      { key: 'inscritos', label: 'Total de Inscritos', get: (d) => d.inscritos ?? 0, fmt: formatNumber, better: 'higher' },
-      { key: 'inscritosAds', label: 'Inscritos ADS', get: (d) => d.inscritosAds ?? 0, fmt: formatNumber, better: 'higher' },
-      { key: 'entradasGrupo', label: 'Entradas no Grupo', get: (d) => d.entradasGrupo ?? 0, fmt: formatNumber, better: 'higher' },
-      { key: 'pesquisas', label: 'Total de Pesquisas', get: (d) => d.pesquisas ?? 0, fmt: formatNumber, better: 'higher' },
-      { key: 'icps', label: 'Total de ICPs', get: (d) => d.icps ?? 0, fmt: formatNumber, better: 'higher' },
-      { key: 'diagnosticos', label: 'Diagnósticos', get: (d) => d.diagnosticos ?? 0, fmt: formatNumber, better: 'higher' },
-      { key: 'cplReal', label: 'CPA / CPL (Real)', get: (d) => d.cplReal ?? 0, fmt: formatCurrency, better: 'lower' },
-    ],
-  },
-  {
-    title: 'Meta Ads',
-    metrics: [
-      { key: 'spend', label: 'Gasto Total', get: (d) => d.investimentoTrafego ?? 0, fmt: formatCurrency, better: 'none' },
-      { key: 'convReal', label: 'Conversão real (ADS ÷ Meta)', get: (d) => { const m = d.leadsMeta ?? 0; return m > 0 ? (d.inscritosAds ?? 0) / m : 0; }, fmt: pct, better: 'higher' },
-      { key: 'alcance', label: 'Alcance', get: (d) => d.alcance ?? 0, fmt: formatCompact, better: 'higher' },
-      { key: 'impressoes', label: 'Impressões', get: (d) => d.impressoes ?? 0, fmt: formatCompact, better: 'higher' },
-      { key: 'frequencia', label: 'Frequência', get: (d) => d.frequencia ?? 0, fmt: freq, better: 'none' },
-      { key: 'lpv', label: 'LPV', get: (d) => d.lpv ?? 0, fmt: formatCompact, better: 'higher' },
-      { key: 'ctrLink', label: 'CTR Link', get: (d) => d.ctrLink ?? 0, fmt: pct, better: 'higher' },
-      { key: 'cpc', label: 'CPC', get: (d) => d.cpc ?? 0, fmt: formatCurrency, better: 'lower' },
-      { key: 'cpm', label: 'CPM', get: (d) => d.cpm ?? 0, fmt: formatCurrency, better: 'lower' },
-      { key: 'convPagina', label: 'Conv. Captura', get: (d) => d.convPagina ?? 0, fmt: pct, better: 'higher' },
-      { key: 'connectRate', label: 'Connect Rate', get: (d) => d.connectRate ?? 0, fmt: pct, better: 'higher' },
-    ],
-  },
-];
-
-// Métricas em destaque como gráfico de barras no topo.
-const CHARTS: { key: string; label: string; get: (d: DashboardData) => number; fmt: (v: number) => string }[] = [
-  { key: 'inscritos', label: 'Inscritos', get: (d) => d.inscritos ?? 0, fmt: formatNumber },
-  { key: 'spend', label: 'Investimento', get: (d) => d.investimentoTrafego ?? 0, fmt: formatCurrency },
-  { key: 'cplReal', label: 'CPA / CPL Real', get: (d) => d.cplReal ?? 0, fmt: formatCurrency },
-  { key: 'diagnosticos', label: 'Diagnósticos', get: (d) => d.diagnosticos ?? 0, fmt: formatNumber },
-];
-
-// "Webinar IA 15/06" → "IA 15/06"
-const shortLabel = (label: string) => label.replace(/^Webinar\s+/i, '');
-
-// A coluna de métricas fica fixa e só as edições rolam na horizontal — com 10
+// A coluna de métricas fica fixa e só as edições rolam na horizontal — com 11
 // edições, o nome da métrica saía da tela e não dava para saber que linha era qual.
 // Cada célula dessa coluna precisa de fundo OPACO (senão os números passam por
 // baixo) e o divisor vai como box-shadow: com `border-collapse`, a borda lateral de
 // uma célula sticky não acompanha a rolagem.
 const STICKY_COL = 'sticky left-0 z-10 shadow-[1px_0_0_0_var(--color-bg-card-border)]';
-
-// Índice do melhor valor da linha (ou -1). Ignora zeros.
-function bestIndex(values: number[], better: Better): number {
-  if (better === 'none') return -1;
-  let idx = -1;
-  let best = better === 'lower' ? Infinity : -Infinity;
-  values.forEach((v, i) => {
-    if (!(v > 0)) return; // ignora ausência de dado
-    if (better === 'lower' ? v < best : v > best) { best = v; idx = i; }
-  });
-  return idx;
-}
 
 const Card: FC<{ title: string; children: ReactNode }> = ({ title, children }) => (
   <div className="border border-bg-card-border bg-bg-card rounded-2xl p-5">
@@ -89,20 +25,27 @@ const Card: FC<{ title: string; children: ReactNode }> = ({ title, children }) =
   </div>
 );
 
-export const EditionsComparison: FC = () => {
-  const { rows, loading, error } = useEditionsComparison();
-  const { theme } = useTheme();
-  const p = chartPalette(theme);
+export const EditionsComparison: FC<{ edicaoAtual?: string }> = ({ edicaoAtual }) => {
+  const { rows, cobertura, loading, error, atualizadoEm } = useEditionsComparison();
+  const p = CHART;
 
   // Ordem cronológica (mais antiga → mais recente) para ler da esquerda p/ direita.
   const eds = useMemo(() => [...rows].reverse(), [rows]);
+
+  // Auditoria cruzada: as duas falhas que só aparecem olhando TODAS as edições de
+  // uma vez — o mesmo dia de mídia contado em duas, e mídia de webinar que não caiu
+  // em edição nenhuma.
+  const checagens = useMemo(
+    () => (rows.length ? auditarComparacao(rows, cobertura) : []),
+    [rows, cobertura]
+  );
 
   if (loading && !eds.length) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-3">
           <div className="h-7 w-7 animate-spin rounded-full border-4 border-bg-card-border border-t-in-green" />
-          <p className="text-fg-muted font-mono text-sm animate-pulse">Carregando edições…</p>
+          <p className="text-fg-muted text-sm animate-pulse">Carregando edições…</p>
         </div>
       </div>
     );
@@ -125,6 +68,12 @@ export const EditionsComparison: FC = () => {
       transition={{ duration: 0.4 }}
       className="space-y-8"
     >
+      {/* Integridade dos dados de TODAS as edições */}
+      {checagens.length > 0 && <AuditoriaPanel checagens={checagens} atualizadoEm={atualizadoEm} />}
+
+      {/* Duelo: escolha duas edições e compare */}
+      <EditionDuel rows={rows} edicaoAtual={edicaoAtual} />
+
       {/* Gráficos de destaque */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {CHARTS.map((c) => {
@@ -160,7 +109,7 @@ export const EditionsComparison: FC = () => {
 
       {/* Tabela comparativa */}
       <div className="border border-bg-card-border bg-bg-card rounded-2xl p-5">
-        <h3 className="text-sm font-semibold text-fg mb-4">Comparativo por métrica</h3>
+        <h3 className="text-sm font-semibold text-fg mb-4">Comparativo por métrica — todas as edições</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -170,7 +119,7 @@ export const EditionsComparison: FC = () => {
                 </th>
                 {eds.map((e) => (
                   <th key={e.id} className="px-3 py-2.5 text-right whitespace-nowrap">
-                    <span className="inline-flex items-center rounded-lg bg-in-green/10 border border-in-green/25 text-in-green px-2.5 py-1 text-xs font-semibold">
+                    <span className="inline-flex items-center rounded-lg bg-in-green/15 border border-in-green/30 text-in-green-text px-2.5 py-1 text-xs font-semibold">
                       {e.label}
                     </span>
                   </th>
@@ -183,7 +132,7 @@ export const EditionsComparison: FC = () => {
                   {/* Fundo opaco (era `/40`) para a célula fixa do título casar com
                       o resto da linha em vez de virar um retângulo mais claro. */}
                   <tr className="bg-bg-card-hover">
-                    <td className={cn(STICKY_COL, 'bg-bg-card-hover px-3 py-2 text-xs font-mono uppercase tracking-widest text-fg-subtle whitespace-nowrap')}>
+                    <td className={cn(STICKY_COL, 'bg-bg-card-hover px-3 py-2 text-[11px] uppercase tracking-[2.2px] text-fg-subtle whitespace-nowrap')}>
                       {section.title}
                     </td>
                     <td colSpan={eds.length} />
@@ -192,18 +141,21 @@ export const EditionsComparison: FC = () => {
                     const values = eds.map((e) => m.get(e.data));
                     const best = bestIndex(values, m.better);
                     return (
-                      <tr key={m.key} className="group border-b border-bg-card-border/50 hover:bg-bg-card-hover">
+                      <tr key={m.key} className="group border-b border-bg-card-border/60 hover:bg-bg-card-hover">
                         {/* `group-hover` porque o fundo opaco da coluna fixa cobre o
                             hover da linha — sem isso só o resto da linha acendia. */}
-                        <td className={cn(STICKY_COL, 'bg-bg-card group-hover:bg-bg-card-hover px-3 py-2.5 text-left text-fg-muted whitespace-nowrap')}>
+                        <td
+                          title={m.ajuda}
+                          className={cn(STICKY_COL, 'bg-bg-card group-hover:bg-bg-card-hover px-3 py-2.5 text-left text-fg-muted whitespace-nowrap')}
+                        >
                           {m.label}
                         </td>
                         {values.map((v, i) => (
                           <td
                             key={i}
                             className={cn(
-                              'px-3 py-2.5 text-right tabular-nums whitespace-nowrap',
-                              i === best ? 'text-in-green font-semibold' : 'text-fg'
+                              'px-3 py-2.5 text-right tabular whitespace-nowrap',
+                              i === best ? 'text-in-green-text font-semibold' : 'text-fg'
                             )}
                           >
                             {m.fmt(v)}

@@ -84,10 +84,10 @@ export const CampanhasTable: FC<CampanhasTableProps> = ({ campanhas, inscritosAd
                 <td className={td}>{c.frequencia.toFixed(2)}</td>
                 <td className={td}>{formatNumber(c.linkClicks)}</td>
                 <td className={td}>{formatNumber(c.lpViews)}</td>
-                <td className={td + ' text-in-green'}>{formatPercent(c.ctrLink)}</td>
+                <td className={td + ' text-in-green-text'}>{formatPercent(c.ctrLink)}</td>
                 <td className={td}>{formatCurrency(c.cpm)}</td>
                 <td className={td}>{formatCurrency(c.cpc)}</td>
-                <td className={td + ' text-in-green'}>{formatNumber(c.conversoes)}</td>
+                <td className={td + ' text-in-green-text'}>{formatNumber(c.conversoes)}</td>
                 <td className={td}>{formatCurrency(c.cpl)}</td>
               </tr>
             ))}

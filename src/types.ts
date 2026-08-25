@@ -28,7 +28,12 @@ export interface DashboardData {
   cpc?: number;          // custo por clique no link (R$)
   ctrLink?: number;      // cliques no link ÷ impressões (fração 0-1)
   connectRate?: number;  // page views ÷ cliques no link (fração 0-1)
-  convPagina?: number;   // leads ÷ page views (fração 0-1)
+  convPagina?: number;   // leads DO PIXEL ÷ page views (fração 0-1)
+  // Conversão da página medida pela PLANILHA de inscritos, não pelo pixel:
+  // inscritos ADS ÷ page views. O pixel da inChurch é global e dispara `lead` em
+  // outros formulários do site, então `convPagina` sai inflado (1,1× a 3,8× o
+  // número real, conforme a edição). Este é o que vale para decisão.
+  convPaginaReal?: number;
 
   // Detalhamento dos ICPs (P1–P4), preenchido por /api/icps.
   icp?: { p1: number; p2: number; p3: number; p4: number };

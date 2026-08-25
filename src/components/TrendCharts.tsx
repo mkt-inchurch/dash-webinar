@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { DiaMeta } from '../types';
-import { useTheme, chartPalette } from '../lib/theme';
+import { CHART } from '../lib/theme';
 
 const ddmm = (iso: string) => {
   const [, m, d] = iso.split('-');
@@ -26,8 +26,7 @@ interface TrendChartsProps {
 }
 
 export const TrendCharts: FC<TrendChartsProps> = ({ serie }) => {
-  const { theme } = useTheme();
-  const p = chartPalette(theme);
+  const p = CHART;
   const AXIS = { fill: p.axis, fontSize: 11 };
   const tooltipStyle = {
     contentStyle: { backgroundColor: p.tooltipBg, borderColor: p.tooltipBorder, borderRadius: '8px', color: p.tooltipText, fontSize: 12 },
