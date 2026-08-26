@@ -5,6 +5,13 @@ import { DateRange, isFullRange, hojeISO } from '../lib/dateFilter';
 interface DateFilterProps {
   range: DateRange;
   full: DateRange;
+  /**
+   * Janela em que a edição teve inscrição ou mídia. É ela que decide se um preset
+   * faz sentido — `full` inclui a cauda de saídas do grupo e de respostas tardias
+   * de pesquisa, que em algumas edições encerradas chega até HOJE e fazia "Hoje"
+   * parecer clicável numa turma que fechou semanas atrás.
+   */
+  atividade?: DateRange | null;
   onChange: (r: DateRange) => void;
 }
 
@@ -19,7 +26,7 @@ const inputCls =
   'bg-bg-base border border-bg-card-border rounded-lg px-3 py-1.5 text-sm text-fg ' +
   'focus:outline-none focus:border-in-green';
 
-export const DateFilter: FC<DateFilterProps> = ({ range, full, onChange }) => {
+export const DateFilter: FC<DateFilterProps> = ({ range, full, atividade, onChange }) => {
   // Presets ancorados em HOJE DE VERDADE.
   //
   // Antes eles eram calculados a partir de `full.end`, o fim da série da edição.
@@ -44,10 +51,17 @@ export const DateFilter: FC<DateFilterProps> = ({ range, full, onChange }) => {
     { label: 'Todo período', range: full, sempre: true },
   ];
 
-  // O preset intersecta o período da edição? (senão, selecioná-lo zera tudo)
-  // Calculado ANTES do corte abaixo — depois de cortado todo intervalo cabe dentro
-  // da edição e "Hoje" voltaria a parecer válido numa edição encerrada.
-  const alcanca = (r: DateRange) => r.end >= full.start && r.start <= full.end;
+  // O preset alcança dias em que a edição teve inscrição ou investimento? (senão,
+  // selecioná-lo zera a tela toda). Calculado ANTES do corte abaixo — depois de
+  // cortado todo intervalo cabe dentro da edição e "Hoje" voltaria a parecer válido
+  // numa edição encerrada.
+  //
+  // O teste é contra `atividade`, não contra `full`: na Trilha 17/08 o `full` ia até
+  // hoje só porque a planilha de pesquisa ainda recebe resposta com o token genérico
+  // da Trilha, e isso deixava "Hoje"/"Ontem" habilitados numa turma encerrada em
+  // 17/08 — clicar zerava todos os cards de captação sem explicar por quê.
+  const vivo = atividade ?? full;
+  const alcanca = (r: DateRange) => r.end >= vivo.start && r.start <= vivo.end;
 
   // Corta o preset no período da edição, para os campos de data não exibirem um
   // limite que não existe ("14 dias" numa edição encerrada em 13/08 mostrava
@@ -60,12 +74,16 @@ export const DateFilter: FC<DateFilterProps> = ({ range, full, onChange }) => {
   const eq = (a: DateRange, b: DateRange) => a.start === b.start && a.end === b.end;
   const aplicado = (p: { range: DateRange; sempre?: boolean }) => (p.sempre ? p.range : cortar(p.range));
   const custom = !presets.some((p) => eq(aplicado(p), range));
+  // Numa edição em andamento, "14 dias" cortado pode dar exatamente o período todo —
+  // e os dois botões acendiam juntos, como se houvesse dois filtros ativos. Quando o
+  // recorte é o período inteiro, quem representa isso é "Todo período".
+  const noTotal = isFullRange(range, full);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         {presets.map((p) => {
-          const active = eq(aplicado(p), range) || (p.label === 'Todo período' && isFullRange(range, full));
+          const active = p.sempre ? noTotal : !noTotal && eq(aplicado(p), range);
           const off = !p.sempre && !alcanca(p.range);
           return (
             <button
@@ -74,7 +92,7 @@ export const DateFilter: FC<DateFilterProps> = ({ range, full, onChange }) => {
               disabled={off}
               title={
                 off
-                  ? `Esta edição vai de ${brDate(full.start)} a ${brDate(full.end)} — não há dado em "${p.label.toLowerCase()}".`
+                  ? `A captação desta edição vai de ${brDate(vivo.start)} a ${brDate(vivo.end)} — não houve inscrição nem investimento em "${p.label.toLowerCase()}".`
                   : undefined
               }
               className={

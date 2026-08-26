@@ -4,7 +4,7 @@ import { EDITIONS } from '../lib/editions';
 import { fullRange, applyDateFilter } from '../lib/dateFilter';
 import { Cobertura } from '../lib/auditoria';
 
-const EMPTY_SERIES: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
+const EMPTY_SERIES: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], saidasGrupo: [], diagnosticos: [], icps: [], meta: [] };
 
 // Base zerada do painel. TODOS os cards sao preenchidos pelas funcoes /api/* por
 // edicao; nada aqui vira numero na tela.
@@ -58,16 +58,22 @@ export type MotivosFonte = Record<string, string>;
 //
 // `permanente: true` na resposta (token do Meta vencido, planilha sem permissão)
 // significa que repetir não adianta — desiste na primeira.
-async function getJson(url: string, tentativas = 3): Promise<any> {
+async function getJson(url: string, fresh = false, tentativas = 3): Promise<any> {
   let motivo = 'Não foi possível ler esta fonte.';
+  // `fresh` = alguém CLICOU em "Verificar e atualizar". Aí o cache é justamente o
+  // que atrapalha: o painel repetia os mesmos números e o clique não provava nada.
+  // O `_v` muda a URL, então a borda da Vercel trata como outra entrada e a função
+  // vai até a fonte de verdade.
+  const alvo = fresh ? `${url}${url.includes('?') ? '&' : '?'}_v=${Date.now()}` : url;
   for (let i = 0; i < tentativas; i++) {
     if (i > 0) await new Promise((r) => setTimeout(r, 400 * Math.pow(3, i - 1))); // 400ms, 1,2s
     try {
-      // SEM `cache: 'no-store'`: ele anulava o cache de borda que as próprias
-      // funções configuram (s-maxage=300), fazendo TODA visita ir até o Google
-      // Sheets — 44 downloads de planilha por abertura da tela Comparar, que é o
-      // caminho mais curto para tomar 429 e ver a tela "quebrar".
-      const res = await fetch(url);
+      // No carregamento AUTOMÁTICO, sem `cache: 'no-store'`: ele anulava o cache de
+      // borda que as próprias funções configuram (s-maxage=300), fazendo TODA visita
+      // ir até o Google Sheets — 44 downloads de planilha por abertura da tela
+      // Comparar, que é o caminho mais curto para tomar 429 e ver a tela "quebrar".
+      // O poll de 2 min continua barato por causa disso; só o clique manual paga.
+      const res = await fetch(alvo, fresh ? { cache: 'no-store' } : undefined);
       const j = await res.json().catch(() => null);
       if (res.ok && j && !j.error) return j;
       if (j?.error) motivo = String(j.error);
@@ -82,14 +88,14 @@ async function getJson(url: string, tentativas = 3): Promise<any> {
   throw err;
 }
 
-async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte, fresh: boolean): Promise<DashboardData> {
   const fail = (motivo?: string) => {
     unavailable.push('meta');
     if (motivo) motivos.meta = motivo;
     return { ...base, ...ZERO_META };
   };
   try {
-    const meta = await getJson(`/api/meta?ed=${ed}`);
+    const meta = await getJson(`/api/meta?ed=${ed}`, fresh);
     if (meta && typeof meta.investimentoTrafego === 'number' && typeof meta.leadsMeta === 'number') {
       if (Array.isArray(meta.porDia)) series.meta = meta.porDia;
       // A API respondeu, mas nenhuma campanha casou com o filtro da edição: os cards
@@ -120,11 +126,15 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed
 // snapshot" (a SendAPI bloqueia a conta por 24h quando recebe requisições demais).
 // Se a função não estiver disponível (ex.: `vite dev`, sem serverless) ou a edição
 // ainda não estiver no snapshot, o card zera e entra no aviso de fonte indisponível.
-async function applySendflowMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte, meta: { sendflowGeradoEm?: string }): Promise<DashboardData> {
+async function applySendflowMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte, meta: { sendflowGeradoEm?: string }, fresh: boolean): Promise<DashboardData> {
   try {
-    const sf = await getJson(`/api/sendflow?ed=${ed}`);
+    const sf = await getJson(`/api/sendflow?ed=${ed}`, fresh);
     if (sf && typeof sf.entradasGrupo === 'number') {
       if (Array.isArray(sf.porDia)) series.grupo = sf.porDia;
+      // Saídas por dia: só existem no modo 'campaign' e só a partir do snapshot
+      // publicado depois de 26/08/2026. Enquanto não vierem, a tela esconde as
+      // saídas em qualquer recorte que não seja o período inteiro.
+      if (Array.isArray(sf.saidasPorDia)) series.saidasGrupo = sf.saidasPorDia;
       // Quando o snapshot do Sendflow foi coletado. A auditoria usa isso para
       // avisar que o card congelou quando o job de hora em hora para de rodar.
       if (typeof sf.geradoEm === 'string') meta.sendflowGeradoEm = sf.geradoEm;
@@ -144,14 +154,14 @@ async function applySendflowMetrics(base: DashboardData, series: DashboardSeries
 // "Total de Inscritos" vem da planilha Inscritos_29_06, deduplicado por e-mail
 // no servidor (/api/inscritos, que não expõe dados pessoais). Fallback: mantém o
 // valor que veio da planilha de métricas.
-async function applyInscritosMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+async function applyInscritosMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte, fresh: boolean): Promise<DashboardData> {
   const fail = (motivo?: string) => {
     unavailable.push('inscritos');
     if (motivo) motivos.inscritos = motivo;
     return { ...base, ...ZERO_INSCRITOS };
   };
   try {
-    const info = await getJson(`/api/inscritos?ed=${ed}`);
+    const info = await getJson(`/api/inscritos?ed=${ed}`, fresh);
     if (info && typeof info.inscritos === 'number') {
       if (Array.isArray(info.porDia)) series.inscritos = info.porDia;
       if (Array.isArray(info.porDiaAds)) series.inscritosAds = info.porDiaAds;
@@ -170,14 +180,14 @@ async function applyInscritosMetrics(base: DashboardData, series: DashboardSerie
 // "Total de Pesquisas" vem da planilha de pesquisa (aba "Pesquisa - Webinar IA na
 // Igreja"), deduplicado por e-mail e só a partir de 19/06/2026 — processado no
 // servidor (/api/pesquisas). Fallback: valor da planilha de métricas.
-async function applyPesquisasMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+async function applyPesquisasMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte, fresh: boolean): Promise<DashboardData> {
   const fail = (motivo?: string) => {
     unavailable.push('pesquisas');
     if (motivo) motivos.pesquisas = motivo;
     return { ...base, ...ZERO_PESQUISAS };
   };
   try {
-    const info = await getJson(`/api/pesquisas?ed=${ed}`);
+    const info = await getJson(`/api/pesquisas?ed=${ed}`, fresh);
     if (info && typeof info.pesquisas === 'number') {
       if (Array.isArray(info.porDia)) series.pesquisas = info.porDia;
       return { ...base, pesquisas: info.pesquisas };
@@ -191,14 +201,14 @@ async function applyPesquisasMetrics(base: DashboardData, series: DashboardSerie
 // "Diagnósticos" vem da planilha de diagnósticos, deduplicado por e-mail no
 // servidor (/api/diagnosticos), dentro da janela da edição (04–12/07). Guarda a
 // série por dia para o filtro de período. Fallback: valor da planilha de métricas.
-async function applyDiagnosticosMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+async function applyDiagnosticosMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte, fresh: boolean): Promise<DashboardData> {
   const fail = (motivo?: string) => {
     unavailable.push('diagnosticos');
     if (motivo) motivos.diagnosticos = motivo;
     return { ...base, ...ZERO_DIAG };
   };
   try {
-    const info = await getJson(`/api/diagnosticos?ed=${ed}`);
+    const info = await getJson(`/api/diagnosticos?ed=${ed}`, fresh);
     if (info && typeof info.diagnosticos === 'number') {
       if (Array.isArray(info.porDia)) series.diagnosticos = info.porDia;
       return { ...base, diagnosticos: info.diagnosticos };
@@ -212,14 +222,14 @@ async function applyDiagnosticosMetrics(base: DashboardData, series: DashboardSe
 // "Total de ICPs" (P1–P4) vem da planilha de pesquisa, classificado e deduplicado
 // por e-mail no servidor (/api/icps). Sobrescreve o total e guarda o detalhamento
 // P1–P4 para o gráfico do card. Fallback: valor da planilha de métricas.
-async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte): Promise<DashboardData> {
+async function applyIcpsMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte, fresh: boolean): Promise<DashboardData> {
   const fail = (motivo?: string) => {
     unavailable.push('icps');
     if (motivo) motivos.icps = motivo;
     return { ...base, ...ZERO_ICPS };
   };
   try {
-    const info = await getJson(`/api/icps?ed=${ed}`);
+    const info = await getJson(`/api/icps?ed=${ed}`, fresh);
     if (info && typeof info.icps === 'number') {
       if (Array.isArray(info.porDia)) series.icps = info.porDia;
       return {
@@ -245,9 +255,9 @@ export interface EdicaoCarregada {
   sendflowGeradoEm?: string;
 }
 
-export async function loadEditionData(edition: string): Promise<EdicaoCarregada> {
+export async function loadEditionData(edition: string, fresh = false): Promise<EdicaoCarregada> {
   const values = { ...BASE_ZERO };
-  const s: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], diagnosticos: [], icps: [], meta: [] };
+  const s: DashboardSeries = { inscritos: [], inscritosAds: [], pesquisas: [], grupo: [], saidasGrupo: [], diagnosticos: [], icps: [], meta: [] };
   // Fontes cuja API por edição falhou — ficam ZERADAS (sem herdar a planilha-base
   // de outro webinar) e viram aviso na tela.
   const unavailable: string[] = [];
@@ -256,12 +266,12 @@ export async function loadEditionData(edition: string): Promise<EdicaoCarregada>
   // Em paralelo: são 6 fontes independentes, e em série a tela Comparar somava as
   // seis latências vezes onze edições.
   const partes = await Promise.all([
-    applyMetaMetrics(values, s, edition, unavailable, motivos),
-    applySendflowMetrics(values, s, edition, unavailable, motivos, extra),
-    applyInscritosMetrics(values, s, edition, unavailable, motivos),
-    applyPesquisasMetrics(values, s, edition, unavailable, motivos),
-    applyDiagnosticosMetrics(values, s, edition, unavailable, motivos),
-    applyIcpsMetrics(values, s, edition, unavailable, motivos),
+    applyMetaMetrics(values, s, edition, unavailable, motivos, fresh),
+    applySendflowMetrics(values, s, edition, unavailable, motivos, extra, fresh),
+    applyInscritosMetrics(values, s, edition, unavailable, motivos, fresh),
+    applyPesquisasMetrics(values, s, edition, unavailable, motivos, fresh),
+    applyDiagnosticosMetrics(values, s, edition, unavailable, motivos, fresh),
+    applyIcpsMetrics(values, s, edition, unavailable, motivos, fresh),
   ]);
   // Cada apply* devolve a base INTEIRA com os seus campos por cima, então não dá
   // para espalhar um sobre o outro: o último sobrescreveria os campos do Meta com
@@ -328,11 +338,19 @@ export function useDashboardData(edition: string) {
   // "atualizado há X" no topo — sem ele não dá para distinguir um painel fresco
   // de um que parou de atualizar há horas.
   const [atualizadoEm, setAtualizadoEm] = useState<number | null>(null);
+  // Uma verificação manual está em curso? É diferente de `loading`: o poll de 2 min
+  // também acende `loading`, e o botão precisa reagir só ao clique de quem pediu.
+  const [verificando, setVerificando] = useState(false);
+  // Quando a última LEITURA FORÇADA (clique no botão) terminou. É o que autoriza a
+  // tela a dizer "conferido agora" — dizer isso depois de um poll que veio do cache
+  // seria a mesma promessa vazia que o botão dava antes.
+  const [verificadoEm, setVerificadoEm] = useState<number | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (fresh = false) => {
     try {
       setLoading(true);
-      const r = await loadEditionData(edition);
+      if (fresh) setVerificando(true);
+      const r = await loadEditionData(edition, fresh);
       setData(r.data);
       setSeries(r.series);
       setUnavailable(r.unavailable);
@@ -341,6 +359,7 @@ export function useDashboardData(edition: string) {
       setError(null);
       setHasLoaded(true);
       setAtualizadoEm(Date.now());
+      if (fresh) setVerificadoEm(Date.now());
     } catch (err: any) {
       console.error('Falha ao carregar a edição', err);
       // Sem fallback para dados simulados: e melhor a tela zerada + aviso do que
@@ -350,13 +369,26 @@ export function useDashboardData(edition: string) {
       setHasLoaded(true);
     } finally {
       setLoading(false);
+      setVerificando(false);
     }
   }, [edition]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-  useAutoRefresh(fetchData, INTERVALO_PAINEL);
+  // O poll automático NUNCA pede `fresh` — ele vive do cache de borda de 5 min, que
+  // é o que mantém o painel barato. Furar o cache é decisão de quem clica.
+  const auto = useCallback(() => { fetchData(false); }, [fetchData]);
+  const verificar = useCallback(() => fetchData(true), [fetchData]);
 
-  return { data, series, loading, hasLoaded, error, unavailable, motivos, sendflowGeradoEm, atualizadoEm, refetch: fetchData };
+  useEffect(() => { fetchData(false); }, [fetchData]);
+  useAutoRefresh(auto, INTERVALO_PAINEL);
+
+  // Troca de edição zera o carimbo de "conferido": ele vale para a edição que estava
+  // aberta quando o botão foi clicado, não para a próxima.
+  useEffect(() => { setVerificadoEm(null); }, [edition]);
+
+  return {
+    data, series, loading, hasLoaded, error, unavailable, motivos, sendflowGeradoEm,
+    atualizadoEm, verificando, verificadoEm, refetch: verificar,
+  };
 }
 
 // Carrega os totais de TODAS as edições em paralelo (para a tela de comparação).
@@ -377,36 +409,44 @@ export function useEditionsComparison() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [atualizadoEm, setAtualizadoEm] = useState<number | null>(null);
+  const [verificando, setVerificando] = useState(false);
+  const [verificadoEm, setVerificadoEm] = useState<number | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (fresh = false) => {
     setLoading(true);
+    if (fresh) setVerificando(true);
     try {
       const [res, cob] = await Promise.all([
         Promise.all(
           EDITIONS.map(async (e) => {
-            const r = await loadEditionData(e.id);
+            const r = await loadEditionData(e.id, fresh);
             return { id: e.id, label: e.label, data: r.data, series: r.series, unavailable: r.unavailable };
           })
         ),
         // Cobertura de mídia: gasto TOTAL da conta em campanhas de webinar, sem
         // recorte de edição. Se falhar, a comparação continua — só a checagem de
         // "mídia fora do painel" fica de fora.
-        getJson('/api/cobertura').catch(() => null),
+        getJson('/api/cobertura', fresh).catch(() => null),
       ]);
       setRows(res);
       setCobertura(cob && typeof cob.total === 'number' ? cob : null);
       setError(null);
       setAtualizadoEm(Date.now());
+      if (fresh) setVerificadoEm(Date.now());
     } catch (err: any) {
       console.error('Falha ao comparar edições', err);
       setError('Erro ao carregar as edições.');
     } finally {
       setLoading(false);
+      setVerificando(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
-  useAutoRefresh(load, INTERVALO_COMPARAR);
+  const auto = useCallback(() => { load(false); }, [load]);
+  const verificar = useCallback(() => load(true), [load]);
 
-  return { rows, cobertura, loading, error, atualizadoEm, refetch: load };
+  useEffect(() => { load(false); }, [load]);
+  useAutoRefresh(auto, INTERVALO_COMPARAR);
+
+  return { rows, cobertura, loading, error, atualizadoEm, verificando, verificadoEm, refetch: verificar };
 }

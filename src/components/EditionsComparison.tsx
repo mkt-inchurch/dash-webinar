@@ -1,11 +1,11 @@
-import { FC, Fragment, ReactNode, useMemo } from 'react';
+import { FC, Fragment, ReactNode, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useEditionsComparison } from '../hooks/useDashboardData';
 import { CHART } from '../lib/theme';
 import { formatCompact, cn } from '../lib/utils';
 import { SECTIONS, CHARTS, shortLabel, bestIndex } from '../lib/metricas';
-import { auditarComparacao } from '../lib/auditoria';
+import { auditarComparacao, Checagem } from '../lib/auditoria';
 import { AuditoriaPanel } from './AuditoriaPanel';
 import { EditionDuel } from './EditionDuel';
 
@@ -25,8 +25,20 @@ const Card: FC<{ title: string; children: ReactNode }> = ({ title, children }) =
   </div>
 );
 
-export const EditionsComparison: FC<{ edicaoAtual?: string }> = ({ edicaoAtual }) => {
-  const { rows, cobertura, loading, error, atualizadoEm } = useEditionsComparison();
+interface Props {
+  edicaoAtual?: string;
+  /**
+   * Sobe de 1 a cada clique em "Verificar" no header. Esta tela tem o próprio ciclo
+   * de leitura (10 min), então sem essa ponte o botão do topo atualizava só os cards
+   * da edição aberta e deixava a comparação inteira com o retrato anterior.
+   */
+  refreshKey?: number;
+  /** Devolve ao header o estado desta tela, para o botão falar do que está na frente. */
+  onEstado?: (e: { verificando: boolean; verificadoEm: number | null; checagens: Checagem[] }) => void;
+}
+
+export const EditionsComparison: FC<Props> = ({ edicaoAtual, refreshKey = 0, onEstado }) => {
+  const { rows, cobertura, loading, error, atualizadoEm, verificando, verificadoEm, refetch } = useEditionsComparison();
   const p = CHART;
 
   // Ordem cronológica (mais antiga → mais recente) para ler da esquerda p/ direita.
@@ -39,6 +51,18 @@ export const EditionsComparison: FC<{ edicaoAtual?: string }> = ({ edicaoAtual }
     () => (rows.length ? auditarComparacao(rows, cobertura) : []),
     [rows, cobertura]
   );
+
+  // Verificação pedida no header. O primeiro render não conta: a montagem já lê as
+  // fontes (pelo cache), e refazer tudo sem cache aqui seria 66 leituras por visita.
+  const primeiro = useRef(true);
+  useEffect(() => {
+    if (primeiro.current) { primeiro.current = false; return; }
+    refetch();
+  }, [refreshKey, refetch]);
+
+  useEffect(() => {
+    onEstado?.({ verificando, verificadoEm, checagens });
+  }, [onEstado, verificando, verificadoEm, checagens]);
 
   if (loading && !eds.length) {
     return (

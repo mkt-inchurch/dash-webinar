@@ -76,9 +76,21 @@ export function computeSendflow(ed, data, grupos) {
   for (const d of porDia) entradasGrupo += d.novos;
 
   let saidas;
+  // Série DIÁRIA das saídas. Existe só no modo 'campaign', onde a SendAPI devolve as
+  // remoções datadas; no modo 'group' as saídas são uma estimativa do período inteiro
+  // (entradas − membros atuais) e não têm por-dia nenhum.
+  //
+  // POR QUE IMPORTA: sem esta série, o painel filtrava as ENTRADAS por data e deixava
+  // as SAÍDAS no total do período. Na edição 31/08, o preset "Hoje" mostrava
+  // "8 entradas ↓ 11 saídas" — as 8 de hoje contra as 11 do mês inteiro, como se o
+  // grupo tivesse encolhido no dia.
+  let saidasPorDia;
   if (ed.sendflowMode === 'campaign') {
     // Campanha inteira: saídas = remoções reais por dia (dentro da janela).
     const rem = somaPorDia(data.remove && data.remove.dates, ed.sendflowDesde, ed.sendflowAte);
+    saidasPorDia = Object.entries(rem)
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([dia, novos]) => ({ data: dia, novos }));
     saidas = Object.values(rem).reduce((a, v) => a + v, 0);
   } else if (grupos) {
     // Modo grupo: estimativa de saídas do grupo #3 = entradas − membros atuais.
@@ -92,5 +104,6 @@ export function computeSendflow(ed, data, grupos) {
 
   const payload = { entradasGrupo, porDia };
   if (saidas != null) payload.saidas = saidas;
+  if (saidasPorDia) payload.saidasPorDia = saidasPorDia;
   return payload;
 }

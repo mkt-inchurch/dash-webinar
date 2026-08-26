@@ -187,6 +187,18 @@ export function auditarEdicao(
     }
   }
 
+  // ---- 6b. As saídas do grupo acompanham o filtro de período? -----------
+  // As entradas SEMPRE têm série por dia; as saídas só no modo 'campaign' do
+  // Sendflow (e só nos snapshots publicados a partir de 26/08/2026). Sem a série,
+  // o painel exibia as saídas do período INTEIRO ao lado de entradas já recortadas
+  // — na Trilha 31/08, o preset "Hoje" mostrava "8 entradas ↓ 11 saídas". Hoje a
+  // tela esconde o número no recorte; este aviso diz por que ele sumiu.
+  if ((data.saidasGrupo ?? 0) > 0 && series.grupo.length > 0 && series.saidasGrupo.length === 0) {
+    add('saidas-serie', 'Saídas do grupo por dia', 'aviso',
+      `As ${int(data.saidasGrupo!)} saídas do grupo não vêm datadas nesta edição, então elas não acompanham o ` +
+      'filtro de período: aparecem só em "Todo período". As entradas acompanham normalmente.');
+  }
+
   // ---- 7. Frescor do snapshot do Sendflow -------------------------------
   // /api/sendflow não fala com a SendAPI: serve o snapshot que o GitHub Actions
   // publica de hora em hora. Se o job parar, o card congela sem avisar.

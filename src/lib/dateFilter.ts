@@ -50,6 +50,27 @@ export function rangeTemDados(series: DashboardSeries, r: DateRange): boolean {
   return false;
 }
 
+// Janela em que a edição de fato ACONTECEU: primeiro e último dia com inscrição ou
+// com investimento. É diferente do `fullRange`, que é a união de TODAS as séries.
+//
+// POR QUE AS DUAS EXISTEM: as séries têm cauda. Gente sai do grupo semanas depois da
+// live, e a planilha de pesquisa continua recebendo resposta com o token genérico da
+// Trilha até a véspera da turma seguinte. Isso empurra `fullRange` para frente — na
+// edição 17/08 ele ia até HOJE (26/08), nove dias depois do fim da captação. Como o
+// filtro habilitava os presets comparando com `fullRange`, "Hoje" e "Ontem"
+// apareciam clicáveis numa edição encerrada e zeravam a tela inteira.
+//
+// "Todo período" continua usando `fullRange` — a cauda é dado real da edição e tem
+// de entrar nos totais. Quem usa esta janela é só a habilitação dos presets.
+export function janelaAtividade(series: DashboardSeries): DateRange | null {
+  const dias: string[] = [];
+  for (const d of series.inscritos) if (d.novos > 0) dias.push(d.data);
+  for (const d of series.meta) if (d.spend > 0 || d.impressions > 0) dias.push(d.data);
+  if (!dias.length) return null;
+  dias.sort();
+  return { start: dias[0], end: dias[dias.length - 1] };
+}
+
 const inRange = (d: string, r: DateRange) => d >= r.start && d <= r.end;
 
 // Recalcula os cards que têm série diária para o intervalo escolhido.
@@ -65,6 +86,25 @@ export function applyDateFilter(base: DashboardData, series: DashboardSeries, r:
   if (series.inscritosAds.length) out.inscritosAds = sum(series.inscritosAds, (d) => d.novos);
   if (series.pesquisas.length) out.pesquisas = sum(series.pesquisas, (d) => d.novos);
   if (series.grupo.length) out.entradasGrupo = sum(series.grupo, (d) => d.novos);
+
+  // Este recorte é o período inteiro da edição? Métricas que não têm série por dia
+  // (saídas do grupo no modo 'group', alcance do Meta) só podem ser exibidas assim.
+  const completo = isFullRange(r, fullRange(series));
+
+  // SAÍDAS DO GRUPO. Com série por dia (modo 'campaign' do Sendflow), somam dentro do
+  // recorte como qualquer outro card. Sem série, o número é do período TOTAL: exibi-lo
+  // ao lado de entradas já filtradas é o erro que a edição 31/08 mostrava no preset
+  // "Hoje" — "8 entradas ↓ 11 saídas", 8 de hoje contra 11 do mês. Aqui ele some, e
+  // `saidasNoPeriodo: false` faz a tela dizer por quê.
+  if (series.saidasGrupo.length) {
+    out.saidasGrupo = sum(series.saidasGrupo, (d) => d.novos);
+    out.saidasNoPeriodo = true;
+  } else if (!completo && out.saidasGrupo != null) {
+    out.saidasGrupo = undefined;
+    out.saidasNoPeriodo = false;
+  } else {
+    out.saidasNoPeriodo = true;
+  }
   if (series.diagnosticos.length) out.diagnosticos = sum(series.diagnosticos, (d) => d.novos);
 
   if (series.icps.length) {
@@ -86,8 +126,33 @@ export function applyDateFilter(base: DashboardData, series: DashboardSeries, r:
     out.leadsMeta = leads;
     out.cplMeta = leads > 0 ? spend / leads : 0;
     out.impressoes = impressions;
-    // Alcance e Frequência ficam como estão (período total, vindos de base) —
-    // reach não é somável por dia.
+
+    // ALCANCE E FREQUÊNCIA. O reach da Meta é deduplicado por pessoa: somar o de cada
+    // dia conta várias vezes quem voltou, então não existe "alcance do recorte" para
+    // uma janela de vários dias — o card fica com o do período total e se declara
+    // assim (`alcanceNoPeriodo: false`), para não ser lido como número do recorte.
+    //
+    // A exceção é o recorte de UM dia: aí o reach daquele dia, que a Graph API já
+    // devolve deduplicado em `porDia`, É o número do período. É o caso do preset
+    // "Hoje", justamente o mais usado.
+    const diasComEntrega = series.meta.filter((d) => inRange(d.data, r) && d.impressions > 0);
+    if (completo) {
+      out.alcanceNoPeriodo = true;
+    } else if (diasComEntrega.length === 0) {
+      // Nenhum dia de entrega no recorte: o alcance do período é zero, e não o do
+      // período inteiro. Mantê-lo aqui exibiria 27 mil pessoas alcançadas ao lado de
+      // zero impressão.
+      out.alcance = 0;
+      out.frequencia = 0;
+      out.alcanceNoPeriodo = true;
+    } else if (diasComEntrega.length === 1 && diasComEntrega[0].reach > 0) {
+      out.alcance = diasComEntrega[0].reach;
+      out.frequencia = diasComEntrega[0].impressions / diasComEntrega[0].reach;
+      out.alcanceNoPeriodo = true;
+    } else {
+      out.alcanceNoPeriodo = false;
+    }
+
     out.lpv = lpViews;
     out.cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
     out.cpc = linkClicks > 0 ? spend / linkClicks : 0;

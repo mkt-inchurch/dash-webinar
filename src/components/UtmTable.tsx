@@ -36,7 +36,7 @@ const COLS: { key: SortKey; label: string; align: 'left' | 'right' }[] = [
   { key: 'pDESQ', label: '% DESQ', align: 'right' },
 ];
 
-export const UtmTable: FC<{ edition: string; totalPesquisas?: number }> = ({ edition, totalPesquisas }) => {
+export const UtmTable: FC<{ edition: string; totalPesquisas?: number; refreshKey?: number }> = ({ edition, totalPesquisas, refreshKey = 0 }) => {
   const [dim, setDim] = useState('utm_campaign');
   const [resp, setResp] = useState<UtmResp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,13 +48,16 @@ export const UtmTable: FC<{ edition: string; totalPesquisas?: number }> = ({ edi
     let alive = true;
     setLoading(true);
     setError(null);
-    fetch(`/api/utms?ed=${edition}&dim=${dim}`, { cache: 'no-store' })
+    // `refreshKey` entra na URL para que a verificação manual do header chegue até
+    // aqui: sem isso a tabela ficava no retrato anterior enquanto os cards acima já
+    // tinham números novos.
+    fetch(`/api/utms?ed=${edition}&dim=${dim}${refreshKey ? `&_v=${refreshKey}-${Date.now()}` : ''}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((j: UtmResp) => { if (alive) { setResp(j); } })
       .catch((e) => { if (alive) setError(String(e)); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [edition, dim]);
+  }, [edition, dim, refreshKey]);
 
   const sorted = useMemo(() => {
     const rows = resp?.rows ?? [];

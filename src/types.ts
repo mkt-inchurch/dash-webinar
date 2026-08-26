@@ -38,8 +38,18 @@ export interface DashboardData {
   // Detalhamento dos ICPs (P1–P4), preenchido por /api/icps.
   icp?: { p1: number; p2: number; p3: number; p4: number };
 
-  // Estimativa de saídas do grupo #3 (entradas − membros atuais), via /api/sendflow.
+  // Saídas do grupo no período, via /api/sendflow. No modo 'campaign' são as
+  // remoções reais (com série por dia, então acompanham o filtro); no modo 'group'
+  // são uma estimativa do período inteiro (entradas − membros atuais).
   saidasGrupo?: number;
+  // false = o número de saídas acima é do PERÍODO TOTAL da edição, não do recorte
+  // de data escolhido (a fonte não tem série por dia). A tela esconde o número em
+  // vez de exibi-lo ao lado de entradas já filtradas.
+  saidasNoPeriodo?: boolean;
+  // false = Alcance e Frequência são do PERÍODO TOTAL da edição. O reach do Meta é
+  // deduplicado e não pode ser somado por dia; só num recorte de UM dia dá para
+  // usar o valor exato daquele dia.
+  alcanceNoPeriodo?: boolean;
 
   // Dados por campanha (período total), via /api/meta — para "Por Campanha" e tabela.
   campanhas?: Campanha[];
@@ -80,6 +90,9 @@ export interface DashboardSeries {
   inscritosAds: DiaContagem[]; // inscritos de tráfego pago por dia
   pesquisas: DiaContagem[];
   grupo: DiaContagem[]; // entradas líquidas por dia (Sendflow, nível campanha)
+  // Saídas do grupo por dia (Sendflow, só no modo 'campaign'). Vazia quando a fonte
+  // não datou as remoções — aí as saídas não acompanham o filtro de período.
+  saidasGrupo: DiaContagem[];
   diagnosticos: DiaContagem[]; // diagnósticos únicos (por e-mail) por dia
   icps: DiaIcp[];
   meta: DiaMeta[];
