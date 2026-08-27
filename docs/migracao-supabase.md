@@ -63,55 +63,46 @@ no `LIKE` o `_` casaria com qualquer caractere, marcando como orgânico quem é 
 
 ## O nó do n8n
 
-O workflow que hoje abastece a planilha passa a gravar também no Supabase. Node
-**HTTP Request**, depois do que já existe:
+O workflow que hoje abastece a planilha passa a gravar também no Supabase. São dois
+nós: um que normaliza o que a LP mandou e outro que grava.
 
-- **Method**: `POST`
-- **URL**: `{{SUPABASE_URL}}/rest/v1/inscritos`
-- **Headers**:
-  - `apikey`: a `service_role`
-  - `Authorization`: `Bearer <service_role>`
-  - `Content-Type`: `application/json`
-  - `Prefer`: `resolution=merge-duplicates`
-- **Body** (JSON):
+**1. Credencial** (uma vez). Em n8n → Credentials → New → **Supabase API**:
 
-```json
-{
-  "edicao_id": "webinar-31-08",
-  "email": "{{ $json.email.toLowerCase().trim() }}",
-  "nome": "{{ $json.nome }}",
-  "telefone": "{{ $json.telefone }}",
-  "membresia": "{{ $json.membresia }}",
-  "cargo": "{{ $json.cargo }}",
-  "utm_source": "{{ $json.utm_source }}",
-  "utm_medium": "{{ $json.utm_medium }}",
-  "utm_campaign": "{{ $json.utm_campaign }}",
-  "utm_content": "{{ $json.utm_content }}",
-  "utm_term": "{{ $json.utm_term }}",
-  "url": "{{ $json.url }}",
-  "origem": "n8n",
-  "payload": {{ JSON.stringify($json) }}
-}
-```
+- *Host*: `https://ilfjvgeapbrakabhbrbl.supabase.co`
+- *Service Role Secret*: a chave `service_role`
 
-`edicao_id` fixo por workflow (ou derivado da LP de origem) é o ponto mais
-importante da migração: hoje "de qual edição é este inscrito" é *deduzido* depois,
-por janela de data e casamento de UTM, e é daí que vieram os erros históricos —
-respostas com UTM genérica que não caíam em edição nenhuma, diagnóstico contado em
-duas edições, campanha renomeada que sumiu do painel. Carimbando na origem, essa
-classe de problema acaba.
+Use a credencial, não headers escritos no nó. O PostgREST exige **dois** headers
+(`apikey` e `Authorization: Bearer`) — só o `Authorization` devolve 401 — e a
+credencial do n8n põe os dois sozinha. Assim a chave não fica dentro do JSON do
+workflow, que é exportado e às vezes versionado.
 
-`Prefer: resolution=merge-duplicates` faz o upsert: um webhook reenviado bate no
-índice único `(edicao_id, lower(email))` e atualiza em vez de duplicar. Reprocessar
-um lote inteiro é seguro.
+**2. Os nós.** Abra `docs/n8n-inscritos.json`, copie o conteúdo e cole (Ctrl+V) no
+canvas do n8n: os dois nós aparecem já ligados. Conecte a saída do webhook (ou do nó
+que hoje alimenta o Google Sheets) na entrada do **Normaliza inscrição**, e escolha a
+credencial no **Grava no Supabase**.
 
-Sem `inscrito_em` no corpo, o banco usa `now()` — que é o horário do servidor, em
-UTC. **Mande o campo explicitamente** com o horário local do Brasil se o webhook
-trouxer a data.
+**3. Antes de ativar**, mude o `EDICAO` no topo do nó de código — é o carimbo da
+turma, e ele muda a cada edição.
 
-Mantenha o nó do Google Sheets ligado por uma edição inteira e compare os dois
-totais antes de desligar. É o mesmo raciocínio do snapshot do Sendflow: o antigo só
-sai depois que o novo provar que bate.
+Detalhes que o nó de código já resolve, e que custam caro se forem refeitos à mão:
+
+- **E-mail em minúsculas.** A dedup é sobre `lower(email)`; um banco de dados com
+  caixas misturadas dedupa certo mas atrapalha quem for procurar depois. (O banco
+  também normaliza por trigger — cinto e suspensório.)
+- **Data em formato brasileiro.** Se a LP mandar `27/08/2026 16:40`, o Postgres leria
+  27 como mês e recusaria a linha. O nó converte antes de enviar.
+- **Sem data no payload**, ele usa o horário local do Brasil — não `now()`, que no
+  servidor é UTC e jogaria toda inscrição da noite para o dia seguinte.
+- **Nomes de campo variados** (`utm_source`, `utmSource`, `UTM Source`) são casados
+  ignorando caixa, espaço, hífen e underline.
+
+`Prefer: resolution=merge-duplicates` faz o upsert: webhook reenviado atualiza em vez
+de duplicar. Sem esse header, o segundo envio volta **409 duplicate key** — foi assim
+que testei, e é o comportamento esperado.
+
+Mantenha o nó do Google Sheets ligado por uma edição inteira e compare os dois totais
+antes de desligar. É o mesmo raciocínio do snapshot do Sendflow: o antigo só sai
+depois que o novo provar que bate.
 
 ## Como conferir
 
