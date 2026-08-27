@@ -96,9 +96,15 @@ Detalhes que o nó de código já resolve, e que custam caro se forem refeitos �
 - **Nomes de campo variados** (`utm_source`, `utmSource`, `UTM Source`) são casados
   ignorando caixa, espaço, hífen e underline.
 
-`Prefer: resolution=merge-duplicates` faz o upsert: webhook reenviado atualiza em vez
-de duplicar. Sem esse header, o segundo envio volta **409 duplicate key** — foi assim
-que testei, e é o comportamento esperado.
+O upsert precisa de **duas** coisas, e faltar qualquer uma delas quebra o reenvio de
+webhook com **409 duplicate key**:
+
+- o header `Prefer: resolution=merge-duplicates`;
+- o parâmetro `?on_conflict=edicao_id,email` na URL.
+
+O PostgREST só aceita nome de coluna como alvo de conflito — por isso os índices
+únicos deixaram de ser sobre `lower(email)`. Testado: sem o parâmetro, o segundo
+envio idêntico devolve 409; com ele, 200 e a linha é atualizada.
 
 Mantenha o nó do Google Sheets ligado por uma edição inteira e compare os dois totais
 antes de desligar. É o mesmo raciocínio do snapshot do Sendflow: o antigo só sai
