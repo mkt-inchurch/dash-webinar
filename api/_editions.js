@@ -13,7 +13,7 @@
 // era contado em 2, 3 ou 4 edições: o painel somava 715 diagnósticos onde existiam
 // 416. Ao criar uma edição nova, feche a janela da edição imediatamente anterior.
 //
-// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08
+// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08 · 14/09
 // (a Calculadora de Líderes fica fora dessa fila: não usa a planilha compartilhada
 // de diagnósticos, e sim uma coluna da própria planilha de participantes.)
 
@@ -336,7 +336,7 @@ export const EDITIONS = {
     // Respostas com a utm generica WEBINAR_IA a partir de 10/08 (dia do webinar). E a
     // ultima edicao de IA da fila, entao a janela fica aberta -- feche `ate` quando a
     // proxima edicao de IA for criada.
-    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-08-10' }],
+    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-08-10', ate: '2026-09-13' }],
     inscritosAdsField: 'source',
     inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Meta: o 10/08 REUSA as MESMAS campanhas do 27/07 — o time renomeou
@@ -506,10 +506,47 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 31/08 (futuro): diagnósticos (planilha compartilhada) só a partir daí.
-    // É a última da fila, então a janela fica aberta — feche em `diagAte` quando a
-    // próxima edição for criada.
+    // Webinar 31/08: diagnósticos (planilha compartilhada) só a partir daí, até a
+    // véspera do próximo webinar em ordem cronológica — que passou a ser o IA de
+    // 14/09. Sem este fechamento, o mesmo diagnóstico cai nas duas edições.
     diagDesde: '2026-08-31',
+    diagAte: '2026-09-13',
+  },
+
+  // Webinar de IA de 14/09. A divulgação começou em 27/08.
+  'webinar-14-09': {
+    id: 'webinar-14-09',
+    label: 'Webinar IA 14/09',
+    // Aba renomeada de "Inscritos_24_08" para "Inscritos_14_09" em 27/08; o gid é o
+    // mesmo, e é o gid que o painel e o n8n usam de verdade.
+    inscritosGid: 1510785434,
+    // A aba já trazia 8 inscrições soltas de 10–20/08, de quando o workflow de IA
+    // gravava aqui sem edição correspondente no painel. Ficam de fora: são de um mês
+    // antes da divulgação e puxariam o CPA desta edição para baixo sem terem vindo
+    // da mídia dela. Para trazê-las, troque esta data por null.
+    inscritosDesde: '2026-08-21',
+    inscritosAte: null,
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    pesquisaUtmMatch: 'WEBINAR_IA_14_SET',
+    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-09-14' }],
+    metaDesde: '2026-08-27',
+    metaAte: null,
+    // ⚠️ A campanha ainda NÃO existe — ela precisa nascer com WEBINAR_IA_14_SET no
+    // nome. Se nascer só como "WEBINAR_IA", o gasto não cai aqui e o card mostra
+    // R$ 0,00 com o aviso "nenhuma campanha casou com o filtro desta edição".
+    // E não adianta afrouxar para 'WEBINAR_IA': casaria com TODAS as edições
+    // anteriores da linha e somaria gasto de meses atrás nesta.
+    metaMatch: 'WEBINAR_IA_14_SET',
+    // Campanha "Webinar: IA na Igreja (14/09)" no Sendflow.
+    sendflowRelease: 'i6TvQNcy63TFeaQ5eyro',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Última da fila: janela aberta. Feche quando a próxima edição for criada.
+    diagDesde: '2026-09-14',
     diagAte: null,
   },
 

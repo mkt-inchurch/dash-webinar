@@ -8,12 +8,15 @@
       "name": "Normaliza inscrição",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://ilfjvgeapbrakabhbrbl.supabase.co/rest/v1/inscritos",
+        "url": "https://ilfjvgeapbrakabhbrbl.supabase.co/rest/v1/inscritos?on_conflict=edicao_id,email",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
@@ -44,7 +47,10 @@
       "name": "Grava no Supabase",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [220, 0]
+      "position": [
+        220,
+        0
+      ]
     }
   ],
   "connections": {
