@@ -126,6 +126,42 @@ o painel mostrava antes da virada, os totais congelados no dia da migração:
 Os 54 payloads das rotas migradas foram comparados byte a byte com produção antes da
 virada: idênticos.
 
+## As planilhas que continuam vivas
+
+Duas planilhas **não** passam pelo n8n e continuam sendo a fonte de verdade do time:
+
+- **Pesquisa Geral** — o formulário escreve direto nela, e a coluna "Filtro de Leads"
+  (P1–P4/Cliente/Desqualificado) é preenchida à mão.
+- **Diagnósticos** — mesma coisa.
+
+Como o painel agora lê só o banco, sem sincronização elas **congelam**: resposta nova
+não aparece e reclassificação feita na planilha não chega. Foi exatamente o que
+aconteceu nas primeiras horas depois do merge.
+
+`scripts/sync-planilhas-supabase.mjs` resolve. Ele lê as planilhas, aplica as mesmas
+regras de atribuição do painel e faz upsert — idempotente, roda quantas vezes quiser,
+não apaga nada. O upsert também é o que traz a reclassificação: mudou o "Filtro de
+Leads" na planilha, a próxima rodada atualiza a linha no banco.
+
+```
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/sync-planilhas-supabase.mjs
+```
+
+Ele cobre inscritos também, o que fecha o intervalo entre uma edição nova começar a
+captar e o nó do Supabase entrar no workflow dela.
+
+**Isso ainda é manual.** Enquanto não virar automação (de hora em hora, como o
+snapshot do Sendflow), alguém precisa rodar. As duas saídas:
+
+- **No n8n** — melhor: ele já tem credencial autenticada do Google, então continua
+  funcionando depois que o compartilhamento por link for revogado.
+- **No GitHub Actions** — mais simples de escrever, mas lê as planilhas pelo link
+  público. Aí o compartilhamento não pode ser revogado, ou o script precisa migrar
+  para uma conta de serviço do Google.
+
+⚠️ **Ordem importa:** revogar o compartilhamento por link das planilhas **quebra este
+script**. Faça a automação autenticada primeiro; revogue depois.
+
 ## Rollback
 
 `git revert` do commit da migração devolve as rotas antigas, que continuam lendo as
