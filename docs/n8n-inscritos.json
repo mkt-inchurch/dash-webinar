@@ -1,0 +1,64 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Normaliza o que a LP manda para o formato da tabela `inscritos`.\n//\n// TROQUE AQUI A CADA TURMA NOVA. Carimbar a edição na origem é o ponto central da\n// migração: hoje \"de qual edição é este inscrito\" é deduzido depois, por janela de\n// data e casamento de UTM, e é daí que vieram os erros históricos (respostas com UTM\n// genérica que não caíam em edição nenhuma, campanha renomeada sumindo do painel).\nconst EDICAO = 'webinar-31-08';\n\n// Acha um campo ignorando caixa, espaço, hífen e underline: a LP já mandou\n// `utm_source`, `utmSource` e `UTM Source` em momentos diferentes.\nconst pega = (obj, ...nomes) => {\n  const limpa = (s) => String(s).toLowerCase().replace(/[\\s_-]/g, '');\n  for (const nome of nomes) {\n    for (const chave of Object.keys(obj)) {\n      if (limpa(chave) !== limpa(nome)) continue;\n      const v = obj[chave];\n      if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();\n    }\n  }\n  return null;\n};\n\n// Horário LOCAL do Brasil no formato que a coluna espera. `toLocaleString('sv-SE')`\n// devolve \"AAAA-MM-DD HH:MM:SS\" — o formato sueco é o ISO sem o T.\nconst agoraBR = () => new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' });\n\n// A LP pode mandar a data em BR (\"27/08/2026 16:40\"). O Postgres leria isso como\n// mês 27 e recusaria a linha inteira — ou, pior, aceitaria trocado. Converte antes.\nconst paraTimestamp = (v) => {\n  if (!v) return agoraBR();\n  const br = /^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})(?:[ T](\\d{1,2}):(\\d{2})(?::(\\d{2}))?)?/.exec(v);\n  if (br) {\n    const [, d, m, a, hh = '00', mi = '00', ss = '00'] = br;\n    return `${a}-${m.padStart(2, '0')}-${d.padStart(2, '0')} ${hh.padStart(2, '0')}:${mi}:${ss}`;\n  }\n  if (/^\\d{4}-\\d{2}-\\d{2}/.test(v)) return v.replace('T', ' ').slice(0, 19);\n  return agoraBR();\n};\n\nreturn items.map(({ json }) => {\n  const email = pega(json, 'email', 'e-mail', 'mail');\n  // Sem e-mail não há como deduplicar: melhor falhar aqui, visível no n8n, do que\n  // gravar uma linha que nunca vai fechar com o painel.\n  if (!email) throw new Error('Inscrição sem e-mail: ' + JSON.stringify(json).slice(0, 200));\n\n  return {\n    json: {\n      edicao_id: EDICAO,\n      email: email.toLowerCase(),\n      nome: pega(json, 'nome', 'name', 'fullname'),\n      telefone: pega(json, 'telefone', 'phone', 'whatsapp', 'celular'),\n      membresia: pega(json, 'membresia', 'membros', 'tamanho da igreja'),\n      cargo: pega(json, 'cargo', 'funcao', 'role'),\n      utm_source: pega(json, 'utm_source'),\n      utm_medium: pega(json, 'utm_medium'),\n      utm_campaign: pega(json, 'utm_campaign'),\n      utm_content: pega(json, 'utm_content'),\n      utm_term: pega(json, 'utm_term'),\n      url: pega(json, 'url', 'pagina', 'page_url', 'referrer'),\n      inscrito_em: paraTimestamp(pega(json, 'data', 'inscrito_em', 'submitted_at', 'timestamp', 'createdat')),\n      origem: 'n8n',\n      payload: json\n    }\n  };\n});\n"
+      },
+      "id": "a1f0c2d4-0001-4a10-9b21-000000000001",
+      "name": "Normaliza inscrição",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ilfjvgeapbrakabhbrbl.supabase.co/rest/v1/inscritos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "a1f0c2d4-0002-4a10-9b21-000000000002",
+      "name": "Grava no Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    }
+  ],
+  "connections": {
+    "Normaliza inscrição": {
+      "main": [
+        [
+          {
+            "node": "Grava no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}
