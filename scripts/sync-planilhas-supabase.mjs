@@ -15,6 +15,8 @@
 // a classificação do lead) e insere o que é novo. Nada é apagado.
 
 import { EDITIONS, brToTs, toBoundTs, criaFiltroPesquisa } from '../api/_editions.js';
+import crypto from 'node:crypto';
+import { fetchComRetry } from '../api/_http.js';
 
 const URL_BASE = process.env.SUPABASE_URL;
 const CHAVE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -48,16 +50,91 @@ const norm = (s) => String(s || '').trim().toLowerCase().normalize('NFD').replac
 const col = (h, nome) => h.findIndex((x) => norm(x) === norm(nome));
 const val = (r, i) => (i === -1 ? null : (String(r[i] ?? '').trim() || null));
 
+// ACESSO ÀS PLANILHAS — dois caminhos, de propósito.
+//
+// Com GOOGLE_SERVICE_ACCOUNT_JSON no ambiente, lê pela API do Sheets autenticado
+// como conta de serviço. É o caminho que permite REVOGAR o "qualquer pessoa com o
+// link" das planilhas: basta compartilhá-las com o e-mail da conta de serviço.
+//
+// Sem a variável, cai no /export?format=csv público — que é como o painel lia antes
+// da migração. Funciona, mas prende as planilhas em compartilhamento aberto.
+const SA = process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON) : null;
+let tokenCache = null;
+
+async function tokenGoogle() {
+  if (tokenCache && tokenCache.expira > Date.now() + 60_000) return tokenCache.valor;
+  const agora = Math.floor(Date.now() / 1000);
+  const cab = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+  const corpo = Buffer.from(JSON.stringify({
+    iss: SA.client_email,
+    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: agora + 3600, iat: agora,
+  })).toString('base64url');
+  const assinatura = crypto.createSign('RSA-SHA256').update(`${cab}.${corpo}`).sign(SA.private_key, 'base64url');
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${cab}.${corpo}.${assinatura}` }),
+  });
+  const j = await r.json();
+  if (!j.access_token) throw new Error(`Google recusou a conta de serviço: ${JSON.stringify(j).slice(0, 200)}`);
+  tokenCache = { valor: j.access_token, expira: Date.now() + (j.expires_in || 3600) * 1000 };
+  return tokenCache.valor;
+}
+
+// A config das edições identifica a aba por gid; a API do Sheets trabalha com o
+// NOME da aba. Este mapa resolve gid → nome, uma vez por planilha.
+const abasPorPlanilha = new Map();
+async function nomeDaAba(sheetId, gid) {
+  if (!abasPorPlanilha.has(sheetId)) {
+    const t = await tokenGoogle();
+    const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets(properties(sheetId,title))`, { headers: { Authorization: `Bearer ${t}` } });
+    if (!r.ok) throw new Error(`Sheets API ${r.status} em ${sheetId}: ${(await r.text()).slice(0, 200)}`);
+    const j = await r.json();
+    abasPorPlanilha.set(sheetId, j.sheets.map((s) => s.properties));
+  }
+  const abas = abasPorPlanilha.get(sheetId);
+  if (gid == null) return abas[0].title;
+  const achada = abas.find((a) => String(a.sheetId) === String(gid));
+  if (!achada) throw new Error(`Aba gid=${gid} não existe na planilha ${sheetId}`);
+  return achada.title;
+}
+
 async function baixaCSV(sheetId, gid) {
+  if (SA) {
+    const aba = await nomeDaAba(sheetId, gid);
+    const t = await tokenGoogle();
+    const r = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(aba)}?majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
+      { headers: { Authorization: `Bearer ${t}` } }
+    );
+    if (!r.ok) throw new Error(`Sheets API ${r.status} em ${sheetId}/${aba}: ${(await r.text()).slice(0, 200)}`);
+    const j = await r.json();
+    // A API omite células vazias no fim da linha; o resto do script indexa por
+    // posição, então as linhas precisam ter o mesmo comprimento do cabeçalho.
+    const linhas = j.values || [];
+    const largura = linhas.length ? linhas[0].length : 0;
+    return linhas.map((l) => { const c = l.map((x) => (x == null ? '' : String(x))); while (c.length < largura) c.push(''); return c; });
+  }
+
   const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv` + (gid != null ? `&gid=${gid}` : '');
-  const r = await fetch(url, { headers: { 'User-Agent': UA }, redirect: 'follow' });
+  // Reenvia nos erros que passam sozinhos (429 do Google, 5xx, soluço de rede). É a
+  // mesma função que as rotas do painel usavam para ler planilha — sem ela, um 429
+  // devolvia corpo vazio e o script quebrava com um TypeError obscuro lá na frente.
+  const r = await fetchComRetry(url, { headers: { 'User-Agent': UA }, timeoutMs: 15000, orcamentoMs: 60000 });
+  if (!r.ok) throw new Error(`Planilha ${sheetId}${gid != null ? ` (gid ${gid})` : ''} respondeu ${r.status}.`);
   const texto = await r.text();
   // Sem compartilhamento, o Google responde 200 com uma página de login em HTML.
   // Engolir isso seria pior que falhar: entraria lixo no banco.
   if (/^\s*<(!doctype html|html)/i.test(texto.slice(0, 200))) {
-    throw new Error(`A planilha ${sheetId} devolveu uma página de login. Compartilhe como "Qualquer pessoa com o link · Leitor" ou troque este script por acesso autenticado.`);
+    throw new Error(`A planilha ${sheetId} devolveu uma página de login. Compartilhe com a conta de serviço e defina GOOGLE_SERVICE_ACCOUNT_JSON, ou reabra o link público.`);
   }
-  return parseCSV(texto);
+  const linhas = parseCSV(texto);
+  if (!linhas.length || !linhas[0].length) {
+    throw new Error(`Planilha ${sheetId}${gid != null ? ` (gid ${gid})` : ''} veio vazia — provavelmente limite de leitura do Google. Tente de novo em alguns minutos.`);
+  }
+  return linhas;
 }
 
 async function upsert(tabela, linhas, chave) {
@@ -217,4 +294,4 @@ const diagnosticos = await sincronizaDiagnosticos(diags);
 console.log(`inscritos:    ${await upsert('inscritos', inscritos, 'edicao_id,email')}`);
 console.log(`pesquisas:    ${await upsert('pesquisas', pesquisas, 'email,respondido_em')}`);
 console.log(`diagnósticos: ${await upsert('diagnosticos', diagnosticos, 'email,pedido_em')}`);
-console.log(`\nsem edição: ${pesquisas.filter((p) => !p.edicao_id).length} pesquisas · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+console.log(`\nacesso: ${SA ? 'conta de serviço (' + SA.client_email + ')' : 'link público'} · sem edição: ${pesquisas.filter((p) => !p.edicao_id).length} pesquisas · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
