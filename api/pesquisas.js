@@ -1,95 +1,26 @@
-// Vercel Serverless Function — conta "Total de Pesquisas" a partir da planilha
-// (aba "Pesquisa - Webinar IA na Igreja"), deduplicando por e-mail e considerando
-// apenas registros a partir de 19/06/2026 (há dados anteriores que devem ser
-// ignorados). Processa no servidor: só contagens saem daqui, nada de PII.
+// Vercel Serverless Function — "Total de Pesquisas" da edição (respostas únicas por
+// e-mail da pesquisa de qualificação, atribuídas a esta edição).
+//
+// A atribuição por UTM + janela de data foi congelada no banco no momento da
+// migração: cada resposta já chega gravada com o seu `edicao_id`. As 308 respostas
+// que não casaram com edição nenhuma ficaram no banco com `edicao_id` nulo — antes
+// elas simplesmente sumiam da conta, sem deixar rastro.
 
-import { getEdition, brToTs, criaFiltroPesquisa } from './_editions.js';
-import { lerCSV } from './_http.js';
-
-const SHEET_ID = '188IL034a2dzqLF9KgGvyufjmD6MH4dc463tYi9NWS_Q';
-// Aba única "Pesquisa Geral" (mistura TODOS os webinars). Usamos o endpoint
-// /export em vez do gviz: o gviz RESPEITA filtros aplicados na planilha e devolve
-// só as linhas visíveis — foi isso que zerou 15/06 e 04/07 (havia um filtro ativo
-// mostrando só a Trilha). O /export devolve a aba inteira, imune a filtros.
-// A separação por edição é feita por janela de data + utm_campaign (match/exclude).
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
-const EMAIL_COL = 'Qual é seu e-mail?';
-const DATE_COL = 'Submitted At';
-
-function parseCSV(text) {
-  const rows = [];
-  let row = [], field = '', inQ = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQ) {
-      if (c === '"') {
-        if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false;
-      } else field += c;
-    } else if (c === '"') inQ = true;
-    else if (c === ',') { row.push(field); field = ''; }
-    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
-    else if (c !== '\r') field += c;
-  }
-  if (field.length || row.length) { row.push(field); rows.push(row); }
-  return rows;
-}
+import { rpc, edicaoPedida, falha } from './_supabase.js';
 
 export default async function handler(req, res) {
-  const ed = getEdition(req);
-  // Um unico predicado compartilhado com /icps e /utms (api/_editions.js):
-  // utm por inclusao + janela da edicao, OU uma das regras `pesquisaExtra`
-  // (tokens genericos por igualdade exata, com janela propria).
-  const aceita = criaFiltroPesquisa(ed);
-
-  // Edições que não têm etapa de pesquisa (ex.: Calculadora de Líderes, onde a
-  // qualificação já vem no próprio formulário). Responde zero em vez de ler a
-  // "Pesquisa Geral" — sem isso, a edição herdaria respostas de outros funis e o
-  // painel ainda marcaria a fonte como indisponível. O card fica escondido na tela.
-  if (ed.pesquisaFonte === 'nenhuma') {
-    res.setHeader('Cache-Control', 's-maxage=1800');
-    return res.status(200).json({ pesquisas: 0, desde: null, porDia: [] });
-  }
-
   try {
-    const rows = parseCSV(await lerCSV(CSV_URL, 'pesquisa'));
-    if (!rows.length) return res.status(502).json({ error: 'Planilha vazia' });
-
-    const header = rows[0];
-    const iEmail = header.indexOf(EMAIL_COL);
-    const iDate = header.indexOf(DATE_COL);
-    if (iEmail === -1 || iDate === -1) {
-      return res.status(500).json({ error: 'Colunas de e-mail/data não encontradas' });
+    const ed = await edicaoPedida(req);
+    if (!ed) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(404).json({ error: 'Edição não encontrada.', permanente: true });
     }
-    const iUtm = header.indexOf('utm_campaign');
-
-    // Dedup por e-mail, considerando só registros a partir do CUTOFF, guardando a
-    // data da primeira pesquisa (>= CUTOFF) de cada pessoa.
-    const firstByEmail = new Map();
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const email = String(row[iEmail] || '').trim().toLowerCase();
-      if (!email) continue;
-      const ts = brToTs(row[iDate]);
-      if (!ts) continue;
-      if (!aceita(iUtm === -1 ? '' : row[iUtm], ts)) continue;
-      const iso = ts.slice(0, 10);
-      const cur = firstByEmail.get(email);
-      if (cur === undefined || iso < cur) firstByEmail.set(email, iso);
-    }
-
-    const total = firstByEmail.size;
-
-    const byDay = {};
-    for (const iso of firstByEmail.values()) byDay[iso] = (byDay[iso] || 0) + 1;
-    const porDia = Object.entries(byDay)
-      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-      .map(([data, novos]) => ({ data, novos }));
-    let acc = 0;
-    for (const d of porDia) { acc += d.novos; d.acumulado = acc; }
-
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({ pesquisas: total, desde: ed.pesquisaDesde, porDia });
+    // Edições que qualificam no próprio formulário de captação não têm etapa de
+    // pesquisa. Zero aqui é a resposta certa, e a tela esconde o card.
+    const dados = await rpc('fn_pesquisas', { p_ed: ed.id });
+    res.setHeader('Cache-Control', ed.semPesquisas ? 's-maxage=1800' : 's-maxage=300, stale-while-revalidate=600');
+    return res.status(200).json(dados);
   } catch (err) {
-    return res.status(err.status || 500).json({ error: String(err.message || err) });
+    return falha(res, err);
   }
 }

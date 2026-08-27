@@ -1,127 +1,23 @@
-// Vercel Serverless Function — conta os "Diagnósticos" a partir da planilha de
-// diagnósticos, deduplicando por e-mail (uma pessoa = 1). Processa no servidor
-// para NÃO expor dados pessoais ao navegador — só contagens saem daqui.
+// Vercel Serverless Function — "Diagnósticos" da edição.
 //
-// A janela (início/fim) vem da edição selecionada (?ed=...).
-// Retorna também `porDia` para o filtro de período da tela somar dentro da janela.
+// A planilha de diagnósticos é compartilhada por todos os webinars e a utm_campaign
+// dela não separa edição — só a DATA separa. Essa janela foi resolvida uma vez, na
+// migração, e gravada em cada linha: aqui é só ler. É o que impede o mesmo
+// diagnóstico de ser contado em 2, 3 ou 4 edições, como já aconteceu.
 
-import { getEdition, brToTs, toBoundTs } from './_editions.js';
-import { lerInscritos, dedupInscritos, porDiaDeContagem } from './_planilha-inscritos.js';
-import { lerCSV } from './_http.js';
-
-const SHEET_ID = '1TCf4XiDVw-Rq0608W7712I5q-ZotwKzgZ7m56kmdpj0';
-// 1ª aba via /export (não gviz): o gviz respeita filtros aplicados na planilha e
-// pode devolver só as linhas visíveis (foi o que quebrou a pesquisa). O /export
-// devolve a aba inteira, imune a filtros. Separação por edição = janela de data.
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
-
-
-// Parser CSV mínimo (trata aspas e vírgulas dentro de campos).
-function parseCSV(text) {
-  const rows = [];
-  let row = [], field = '', inQ = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQ) {
-      if (c === '"') {
-        if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false;
-      } else field += c;
-    } else if (c === '"') inQ = true;
-    else if (c === ',') { row.push(field); field = ''; }
-    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
-    else if (c !== '\r') field += c;
-  }
-  if (field.length || row.length) { row.push(field); rows.push(row); }
-  return rows;
-}
-
-// Normaliza cabeçalho para casar por nome (sem acento/caixa/espaços).
-const norm = (s) =>
-  String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-// Acha a 1ª coluna cujo cabeçalho casa com algum dos padrões.
-function findCol(header, patterns) {
-  for (let i = 0; i < header.length; i++) {
-    const h = norm(header[i]);
-    if (h && patterns.some((p) => p.test(h))) return i;
-  }
-  return -1;
-}
-
-// Edições fora da planilha compartilhada de diagnósticos (ex.: Calculadora de
-// Líderes) marcam o diagnóstico numa coluna da própria planilha de inscritos: cada
-// linha com o valor de `diagValor` ("Sim") na coluna `diagCol` é um diagnóstico.
-// Aqui a janela de data não é necessária — a planilha é exclusiva da edição.
-async function diagnosticosDaPlanilhaDeInscritos(ed, res) {
-  const { header, linhas } = await lerInscritos(ed);
-  const registros = dedupInscritos(ed, header, linhas, { diag: ed.diagCol || 'Diagnóstico' });
-  const alvo = String(ed.diagValor || 'Sim').trim().toLowerCase();
-
-  const byDay = {};
-  let total = 0;
-  for (const { iso, diag } of registros.values()) {
-    if (String(diag || '').trim().toLowerCase() !== alvo) continue;
-    byDay[iso] = (byDay[iso] || 0) + 1;
-    total++;
-  }
-
-  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-  return res.status(200).json({
-    diagnosticos: total,
-    inicio: ed.inscritosDesde,
-    fim: ed.inscritosAte,
-    porDia: porDiaDeContagem(byDay),
-  });
-}
+import { rpc, edicaoPedida, falha } from './_supabase.js';
 
 export default async function handler(req, res) {
-  const ed = getEdition(req);
-  const DESDE = toBoundTs(ed.diagDesde, false);
-  const ATE = toBoundTs(ed.diagAte, true); // null = aberto
   try {
-    if (ed.diagFonte === 'inscritos') return await diagnosticosDaPlanilhaDeInscritos(ed, res);
-
-    const rows = parseCSV(await lerCSV(CSV_URL, 'diagnósticos'));
-    if (rows.length < 2) return res.status(502).json({ error: 'Planilha vazia' });
-
-    const header = rows[0];
-    const iEmail = findCol(header, [/e-?mail/]);
-    const iData = findCol(header, [/^data/, /date/, /submit/, /enviad/, /carimbo/, /timestamp/, /hora/, /\bdia\b/]);
-    if (iEmail === -1) {
-      return res.status(500).json({ error: `Coluna de e-mail não encontrada. Cabeçalhos: ${header.join(' | ')}` });
+    const ed = await edicaoPedida(req);
+    if (!ed) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(404).json({ error: 'Edição não encontrada.', permanente: true });
     }
-
-    // Dedup por e-mail dentro da janela da edição, guardando a data da PRIMEIRA
-    // ocorrência de cada pessoa (para o "novos por dia").
-    const firstByEmail = new Map();
-    for (let i = 1; i < rows.length; i++) {
-      const email = String(rows[i][iEmail] || '').trim().toLowerCase();
-      if (!email) continue;
-      const ts = iData === -1 ? null : brToTs(rows[i][iData]);
-      if (!ts) continue; // planilha de diagnósticos sempre tem "Submitted At"
-      if (DESDE && ts < DESDE) continue;
-      if (ATE && ts > ATE) continue; // fora da janela da edição
-      const day = ts.slice(0, 10);
-      const cur = firstByEmail.get(email);
-      if (cur === undefined || day < cur) firstByEmail.set(email, day);
-    }
-
-    const total = firstByEmail.size;
-
-    const byDay = {};
-    for (const day of firstByEmail.values()) byDay[day] = (byDay[day] || 0) + 1;
-    const porDia = Object.entries(byDay)
-      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-      .map(([data, novos]) => ({ data, novos }));
-
+    const dados = await rpc('fn_diagnosticos', { p_ed: ed.id });
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json({
-      diagnosticos: total,
-      inicio: ed.diagDesde,
-      fim: ed.diagAte,
-      porDia,
-    });
+    return res.status(200).json(dados);
   } catch (err) {
-    return res.status(err.status ? 502 : 500).json({ error: String(err.message || err) });
+    return falha(res, err);
   }
 }
