@@ -343,8 +343,14 @@ export const EDITIONS = {
     // "WEBINAR_IA_04 | 27.07" para "WEBINAR_IA_04 | 10-08" (mesmos ids). Como o nome
     // ainda contém WEBINAR_IA_04, a separação 27/07 × 10/08 é só por DATA: o 27/07
     // fecha em 27/07 (metaAte) e o 10/08 conta de 28/07 (metaDesde) em diante.
+    //
+    // E a MESMA campanha foi renomeada de novo, agora para "| 14-09" (01/09/2026).
+    // Por isso o 10/08 fecha em 30/08: o gasto de 31/08 em diante é do 14/09. Sem
+    // este `metaAte`, as duas edições contariam a mesma verba. Conferido antes de
+    // fechar: nenhuma campanha WEBINAR_IA_04 gastou entre 11/08 e 30/08, então o
+    // corte não descarta entrega nenhuma do 10/08.
     metaDesde: '2026-07-28',
-    metaAte: null,
+    metaAte: '2026-08-30',
     metaMatch: 'WEBINAR_IA_04',
     // Release dedicada "Webinar: IA na Igreja (10/08)" (live 10/08 19h). Modo
     // campaign: entradas = adds, saídas = removes por dia. Sem corte (release só do 10/08).
@@ -520,11 +526,16 @@ export const EDITIONS = {
     // Aba renomeada de "Inscritos_24_08" para "Inscritos_14_09" em 27/08; o gid é o
     // mesmo, e é o gid que o painel e o n8n usam de verdade.
     inscritosGid: 1510785434,
-    // A aba já trazia 8 inscrições soltas de 10–20/08, de quando o workflow de IA
-    // gravava aqui sem edição correspondente no painel. Ficam de fora: são de um mês
-    // antes da divulgação e puxariam o CPA desta edição para baixo sem terem vindo
-    // da mídia dela. Para trazê-las, troque esta data por null.
-    inscritosDesde: '2026-08-21',
+    // A aba já trazia 7 inscrições soltas de 10–20/08, de quando o workflow de IA
+    // gravava aqui sem edição correspondente no painel. Ficam de fora: são de antes
+    // da divulgação e puxariam o CPA desta edição para baixo sem terem vindo da
+    // mídia dela. O corte é 31/08 — escolha do time, e é também o primeiro dia de
+    // entrega da campanha. Para trazer as 7 de volta, troque esta data por null.
+    //
+    // ATENÇÃO: desde a migração para o Postgres esta data é só documentação. Quem
+    // manda de verdade é a coluna `na_janela` da tabela `inscritos` — mudar aqui não
+    // muda o painel sem um UPDATE correspondente no banco.
+    inscritosDesde: '2026-08-31',
     inscritosAte: null,
     inscritosAdsField: 'source',
     inscritosAdsExclude: ORIGENS_NAO_PAGAS,
@@ -532,14 +543,19 @@ export const EDITIONS = {
     pesquisaAte: null,
     pesquisaUtmMatch: 'WEBINAR_IA_14_SET',
     pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-09-14' }],
-    metaDesde: '2026-08-27',
+    // A mídia desta edição não ganhou campanha nova: o time RENOMEOU a de sempre,
+    // "[IN][INCH][LEADS] TOPO DE FUNIL | WEBINAR_IA_04" (id 120248071509010003), de
+    // "| 10-08" para "| 14-09" — o mesmo movimento que já tinha levado ela de
+    // "| 27.07" para "| 10-08". Como as três edições dividem a MESMA campanha e o
+    // nome atual vale para todo o histórico dela, quem separa é a DATA: o 10/08
+    // fecha em 30/08 e esta começa em 31/08, primeiro dia de entrega (R$ 61,71 /
+    // 1.303 impressões em 31/08; nada entre 11/08 e 30/08).
+    metaDesde: '2026-08-31',
     metaAte: null,
-    // ⚠️ A campanha ainda NÃO existe — ela precisa nascer com WEBINAR_IA_14_SET no
-    // nome. Se nascer só como "WEBINAR_IA", o gasto não cai aqui e o card mostra
-    // R$ 0,00 com o aviso "nenhuma campanha casou com o filtro desta edição".
-    // E não adianta afrouxar para 'WEBINAR_IA': casaria com TODAS as edições
-    // anteriores da linha e somaria gasto de meses atrás nesta.
-    metaMatch: 'WEBINAR_IA_14_SET',
+    // Casar por 'WEBINAR_IA_04' e não por '14-09': se a próxima campanha nascer com
+    // outro sufixo de data, ela continua caindo aqui. O que NÃO serve é afrouxar
+    // para 'WEBINAR_IA' — casaria com todas as edições anteriores da linha.
+    metaMatch: 'WEBINAR_IA_04',
     // Campanha "Webinar: IA na Igreja (14/09)" no Sendflow.
     sendflowRelease: 'i6TvQNcy63TFeaQ5eyro',
     sendflowGroup: null,

@@ -15,11 +15,21 @@ import icps from '../api/icps.js';
 import utms from '../api/utms.js';
 import inscritos from '../api/inscritos.js';
 
-const ORDEM = [
-  'webinar-15-06', 'webinar-04-07', 'webinar-13-07', 'webinar-20-07', 'webinar-27-07',
-  'webinar-03-08', 'webinar-10-08', 'webinar-17-08', 'webinar-24-08', 'webinar-31-08',
-  'calculadora-lideres',
-];
+// A ordem sai do próprio EDITIONS, na ordem em que as edições estão declaradas lá
+// (cronológica, com a Calculadora no fim). Era uma lista fixa aqui, e edição nova
+// simplesmente não era conferida: a de 14/09 nasceu fora dela.
+const ORDEM = Object.keys(EDITIONS);
+
+// Desde a migração para o Postgres, inscritos/pesquisas/ICPs/UTMs/diagnósticos vêm
+// do banco. Sem as variáveis do Supabase, todo handler falha e o relatório sai com
+// "undefined" em cada coluna e uma lista de inconsistências que não existem — o que
+// é pior do que não rodar. Então pare aqui, dizendo o que falta.
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('Faltam SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no ambiente.');
+  console.error('Elas estão na Vercel (Settings → Environment Variables). Rode assim:');
+  console.error('  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/verifica-edicoes.mjs');
+  process.exit(1);
+}
 
 // req/res mínimos no formato que os handlers esperam.
 function chamar(handler, ed, query = {}) {
