@@ -532,9 +532,11 @@ export const EDITIONS = {
     // mídia dela. O corte é 31/08 — escolha do time, e é também o primeiro dia de
     // entrega da campanha. Para trazer as 7 de volta, troque esta data por null.
     //
-    // ATENÇÃO: desde a migração para o Postgres esta data é só documentação. Quem
-    // manda de verdade é a coluna `na_janela` da tabela `inscritos` — mudar aqui não
-    // muda o painel sem um UPDATE correspondente no banco.
+    // ATENÇÃO: desde a migração para o Postgres, o painel lê a coluna `na_janela` da
+    // tabela `inscritos`, não esta data. Quem traduz uma na outra é o sync das
+    // planilhas, que recalcula `na_janela` a partir daqui a cada rodada. Enquanto
+    // esse sync não estiver ligado, mudar esta data sozinha não muda o painel —
+    // precisa do UPDATE correspondente no banco.
     inscritosDesde: '2026-08-31',
     inscritosAte: null,
     inscritosAdsField: 'source',
