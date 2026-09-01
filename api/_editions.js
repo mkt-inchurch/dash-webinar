@@ -554,10 +554,20 @@ export const EDITIONS = {
     // 1.303 impressões em 31/08; nada entre 11/08 e 30/08).
     metaDesde: '2026-08-31',
     metaAte: null,
-    // Casar por 'WEBINAR_IA_04' e não por '14-09': se a próxima campanha nascer com
-    // outro sufixo de data, ela continua caindo aqui. O que NÃO serve é afrouxar
-    // para 'WEBINAR_IA' — casaria com todas as edições anteriores da linha.
-    metaMatch: 'WEBINAR_IA_04',
+    // '14-09' é o termo desta edição no nome da campanha, e isola exatamente uma
+    // campanha em toda a conta (conferido no histórico completo). É mais preciso que
+    // 'WEBINAR_IA_04', que casaria também as campanhas antigas "| 10-08".
+    //
+    // ⚠️ O PREÇO: este match vive do sufixo de data, e esta campanha já foi renomeada
+    // três vezes. No dia em que ela virar "| 28-09", o match para de casar e o card
+    // desta edição ZERA, inclusive o passado. Se isso acontecer, volte para
+    // 'WEBINAR_IA_04' — esse token sobreviveu a todas as renomeações — e mantenha a
+    // separação por data, que é o que já faz o 27/07 e o 10/08 conviverem.
+    //
+    // Não confundir com a UTM Source que chega na planilha,
+    // "{{[IN][INCH][LEADS]TOPO_DE_FUNIL_WEBINAR_IA_14-09}}": aquilo é um campo da LP,
+    // não o nome da campanha, e a URL do anúncio ainda carrega o sufixo 10-08.
+    metaMatch: '14-09',
     // Campanha "Webinar: IA na Igreja (14/09)" no Sendflow.
     sendflowRelease: 'i6TvQNcy63TFeaQ5eyro',
     sendflowGroup: null,
