@@ -22,6 +22,7 @@ export interface Edition {
 // Mais recente primeiro (a primeira também é o rótulo padrão do seletor).
 export const EDITIONS: Edition[] = [
   { id: 'calculadora-lideres', label: 'Calculadora de Líderes', semPesquisas: true, diagPropria: true },
+  { id: 'webinar-14-09', label: 'Webinar IA 14/09' },
   { id: 'webinar-31-08', label: 'Webinar Trilha 31/08' },
   { id: 'webinar-24-08', label: 'Webinar Igreja Digital 24/08' },
   { id: 'webinar-17-08', label: 'Webinar Trilha 17/08' },

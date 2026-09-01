@@ -13,7 +13,7 @@
 // era contado em 2, 3 ou 4 edições: o painel somava 715 diagnósticos onde existiam
 // 416. Ao criar uma edição nova, feche a janela da edição imediatamente anterior.
 //
-// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08
+// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08 · 14/09
 // (a Calculadora de Líderes fica fora dessa fila: não usa a planilha compartilhada
 // de diagnósticos, e sim uma coluna da própria planilha de participantes.)
 
@@ -336,15 +336,21 @@ export const EDITIONS = {
     // Respostas com a utm generica WEBINAR_IA a partir de 10/08 (dia do webinar). E a
     // ultima edicao de IA da fila, entao a janela fica aberta -- feche `ate` quando a
     // proxima edicao de IA for criada.
-    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-08-10' }],
+    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-08-10', ate: '2026-09-13' }],
     inscritosAdsField: 'source',
     inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Meta: o 10/08 REUSA as MESMAS campanhas do 27/07 — o time renomeou
     // "WEBINAR_IA_04 | 27.07" para "WEBINAR_IA_04 | 10-08" (mesmos ids). Como o nome
     // ainda contém WEBINAR_IA_04, a separação 27/07 × 10/08 é só por DATA: o 27/07
     // fecha em 27/07 (metaAte) e o 10/08 conta de 28/07 (metaDesde) em diante.
+    //
+    // E a MESMA campanha foi renomeada de novo, agora para "| 14-09" (01/09/2026).
+    // Por isso o 10/08 fecha em 30/08: o gasto de 31/08 em diante é do 14/09. Sem
+    // este `metaAte`, as duas edições contariam a mesma verba. Conferido antes de
+    // fechar: nenhuma campanha WEBINAR_IA_04 gastou entre 11/08 e 30/08, então o
+    // corte não descarta entrega nenhuma do 10/08.
     metaDesde: '2026-07-28',
-    metaAte: null,
+    metaAte: '2026-08-30',
     metaMatch: 'WEBINAR_IA_04',
     // Release dedicada "Webinar: IA na Igreja (10/08)" (live 10/08 19h). Modo
     // campaign: entradas = adds, saídas = removes por dia. Sem corte (release só do 10/08).
@@ -506,10 +512,59 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 31/08 (futuro): diagnósticos (planilha compartilhada) só a partir daí.
-    // É a última da fila, então a janela fica aberta — feche em `diagAte` quando a
-    // próxima edição for criada.
+    // Webinar 31/08: diagnósticos (planilha compartilhada) só a partir daí, até a
+    // véspera do próximo webinar em ordem cronológica — que passou a ser o IA de
+    // 14/09. Sem este fechamento, o mesmo diagnóstico cai nas duas edições.
     diagDesde: '2026-08-31',
+    diagAte: '2026-09-13',
+  },
+
+  // Webinar de IA de 14/09. A divulgação começou em 27/08.
+  'webinar-14-09': {
+    id: 'webinar-14-09',
+    label: 'Webinar IA 14/09',
+    // Aba renomeada de "Inscritos_24_08" para "Inscritos_14_09" em 27/08; o gid é o
+    // mesmo, e é o gid que o painel e o n8n usam de verdade.
+    inscritosGid: 1510785434,
+    // A aba já trazia 7 inscrições soltas de 10–20/08, de quando o workflow de IA
+    // gravava aqui sem edição correspondente no painel. Ficam de fora: são de antes
+    // da divulgação e puxariam o CPA desta edição para baixo sem terem vindo da
+    // mídia dela. O corte é 31/08 — escolha do time, e é também o primeiro dia de
+    // entrega da campanha. Para trazer as 7 de volta, troque esta data por null.
+    //
+    // ATENÇÃO: desde a migração para o Postgres, o painel lê a coluna `na_janela` da
+    // tabela `inscritos`, não esta data. Quem traduz uma na outra é o sync das
+    // planilhas, que recalcula `na_janela` a partir daqui a cada rodada. Enquanto
+    // esse sync não estiver ligado, mudar esta data sozinha não muda o painel —
+    // precisa do UPDATE correspondente no banco.
+    inscritosDesde: '2026-08-31',
+    inscritosAte: null,
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    pesquisaUtmMatch: 'WEBINAR_IA_14_SET',
+    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-09-14' }],
+    // A mídia desta edição não ganhou campanha nova: o time RENOMEOU a de sempre,
+    // "[IN][INCH][LEADS] TOPO DE FUNIL | WEBINAR_IA_04" (id 120248071509010003), de
+    // "| 10-08" para "| 14-09" — o mesmo movimento que já tinha levado ela de
+    // "| 27.07" para "| 10-08". Como as três edições dividem a MESMA campanha e o
+    // nome atual vale para todo o histórico dela, quem separa é a DATA: o 10/08
+    // fecha em 30/08 e esta começa em 31/08, primeiro dia de entrega (R$ 61,71 /
+    // 1.303 impressões em 31/08; nada entre 11/08 e 30/08).
+    metaDesde: '2026-08-31',
+    metaAte: null,
+    // Casar por 'WEBINAR_IA_04' e não por '14-09': se a próxima campanha nascer com
+    // outro sufixo de data, ela continua caindo aqui. O que NÃO serve é afrouxar
+    // para 'WEBINAR_IA' — casaria com todas as edições anteriores da linha.
+    metaMatch: 'WEBINAR_IA_04',
+    // Campanha "Webinar: IA na Igreja (14/09)" no Sendflow.
+    sendflowRelease: 'i6TvQNcy63TFeaQ5eyro',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Última da fila: janela aberta. Feche quando a próxima edição for criada.
+    diagDesde: '2026-09-14',
     diagAte: null,
   },
 
