@@ -1,0 +1,52 @@
+# Sincronização das planilhas que continuam sendo preenchidas fora do n8n.
+#
+# POR QUE EXISTE: depois da migração para o Postgres, o painel não lê mais planilha.
+# Mas a "Pesquisa Geral" (respostas do formulário e a coluna "Filtro de Leads",
+# digitada à mão pelo time) e a de diagnósticos continuam vivas — nenhum workflow do
+# n8n escreve nelas. Sem esta rodada, pesquisas, ICPs e diagnósticos congelam.
+#
+# Inscritos também entram, o que cobre o intervalo entre uma edição nova começar a
+# captar e o nó do Supabase entrar no workflow dela.
+#
+# É idempotente: faz upsert, nunca apaga. Rodar duas vezes seguidas é inofensivo.
+
+name: Sync planilhas → Supabase
+
+on:
+  schedule:
+    - cron: '20 * * * *' # de hora em hora (o :07 já é do snapshot do Sendflow)
+  workflow_dispatch: # botão "Run workflow", para não esperar o próximo ciclo
+  push:
+    # A regra de atribuição por edição mora nesses arquivos. Mudou a regra,
+    # ressincroniza na hora em vez de esperar até a próxima hora.
+    branches: [main]
+    paths:
+      - api/_editions.js
+      - scripts/sync-planilhas-supabase.mjs
+      - .github/workflows/sync-planilhas.yml
+
+# Duas rodadas ao mesmo tempo escreveriam as mesmas linhas.
+concurrency:
+  group: sync-planilhas
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Sincronizar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Opcional. Com ele, as planilhas são lidas pela API do Sheets autenticado
+          # e o compartilhamento "qualquer pessoa com o link" pode ser revogado.
+          # Sem ele, o script cai no /export público — que é o que mantém as
+          # planilhas abertas.
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: node scripts/sync-planilhas-supabase.mjs

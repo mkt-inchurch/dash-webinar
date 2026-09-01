@@ -10,3 +10,6 @@ tsconfig.tsbuildinfo
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Backups de workflows do n8n: contêm credenciais em texto puro.
+.backups-n8n/
