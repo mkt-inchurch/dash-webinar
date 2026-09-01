@@ -14,7 +14,11 @@ name: Sync planilhas → Supabase
 
 on:
   schedule:
-    - cron: '20 * * * *' # de hora em hora (o :07 já é do snapshot do Sendflow)
+    # De hora em hora (o :07 já é do snapshot do Sendflow). O minuto é um PEDIDO,
+    # não uma promessa: o agendador do Actions atrasa bastante neste repo — o
+    # snapshot, marcado para :07, já rodou às :10, :24, :38 e :45. Quando precisar
+    # do resultado na hora, use "Run workflow" em vez de esperar o ciclo.
+    - cron: '20 * * * *'
   workflow_dispatch: # botão "Run workflow", para não esperar o próximo ciclo
   push:
     # A regra de atribuição por edição mora nesses arquivos. Mudou a regra,
