@@ -3,18 +3,13 @@
 // /diagnósticos). As serverless functions leem `?ed=<id>` e usam esta config.
 // Datas ISO "AAAA-MM-DD"; `ate: null` = aberto (até hoje).
 //
-// ANTES DE CRIAR UMA EDIÇÃO AQUI, CADASTRE-A NO BANCO. Desde a migração para o
-// Postgres, `inscritos.edicao_id` tem chave estrangeira para a tabela `edicoes`, que
-// NÃO é derivada deste arquivo — é uma tabela de verdade, preenchida à mão. Sem a
-// linha correspondente, o sync das planilhas quebra inteiro no primeiro lote, com
-// `23503 ... Key (edicao_id)=(...) is not present in table "edicoes"`, e nenhuma
-// edição é atualizada (nem as antigas). O SQL, no projeto `dash-webinar` do Supabase:
+// ESTE ARQUIVO É A FONTE ÚNICA. Criar uma edição aqui basta: as rotas leem as
+// planilhas direto em CSV, e não há banco nem cadastro em outro lugar para manter em
+// dia. Entre 27/08 e 09/09/2026 houve um Postgres no caminho, que exigia cadastrar a
+// edição também lá — não existe mais. Ver `docs/fontes-de-dados.md`.
 //
-//   insert into edicoes (id, label, ordem, tem_pesquisa, diag_proprio, origens_nao_pagas, ads_campo)
-//   values ('webinar-21-09', 'Webinar Trilha 21/09', 12, true, false,
-//           array['CONTEUDO','EMAIL','ORGANIC','HS_EMAIL','X1_DISPARAI','INDICACAO','EVENTOS','WHATSAPP','GRUPO'], 'source');
-//
-// `ordem` é a posição cronológica (a calculadora fica em 99, fora da fila).
+// Depois de mexer aqui, rode `node scripts/verifica-edicoes.mjs`: ele confere TODAS
+// as edições contra as planilhas, sem precisar de nenhum segredo.
 
 // REGRA DOS DIAGNÓSTICOS (diagDesde/diagAte): a planilha de diagnósticos é ÚNICA e
 // compartilhada por todos os webinars, e a coluna utm_campaign dela NÃO separa
@@ -550,12 +545,6 @@ export const EDITIONS = {
     // da divulgação e puxariam o CPA desta edição para baixo sem terem vindo da
     // mídia dela. O corte é 31/08 — escolha do time, e é também o primeiro dia de
     // entrega da campanha. Para trazer as 7 de volta, troque esta data por null.
-    //
-    // ATENÇÃO: desde a migração para o Postgres, o painel lê a coluna `na_janela` da
-    // tabela `inscritos`, não esta data. Quem traduz uma na outra é o sync das
-    // planilhas, que recalcula `na_janela` a partir daqui a cada rodada. Enquanto
-    // esse sync não estiver ligado, mudar esta data sozinha não muda o painel —
-    // precisa do UPDATE correspondente no banco.
     inscritosDesde: '2026-08-31',
     inscritosAte: null,
     inscritosAdsField: 'source',
