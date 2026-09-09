@@ -631,11 +631,13 @@ export const EDITIONS = {
     pesquisaDesde: null,
     pesquisaAte: null,
     pesquisaUtmMatch: 'WEBINAR_TRILHA_INTEGRACAO_21',
-    // ⚠️ Como aconteceu na estreia do 31/08, o link da pesquisa ainda circula com a
-    // utm da turma anterior (o primeiro inscrito orgânico desta aba chegou com
-    // WEBINAR_TRILHA_INTEGRACAO_31_AGO). Enquanto ela não for atualizada, quem
-    // sustenta Pesquisas/ICPs/UTMs desta edição é a regra abaixo, do token genérico:
-    // a partir de 21/09 as respostas sem sufixo são desta turma. É a última da fila,
+    // Diferente da estreia do 31/08, o link da pesquisa desta turma já nasceu com a
+    // utm própria: as primeiras respostas chegaram como
+    // WEBINAR_TRILHA_INTEGRACAO_21_SET, que o match acima cobre. Não confunda com a
+    // utm que aparece na planilha de INSCRITOS, onde o link orgânico ainda leva
+    // ..._31_AGO — são dois links diferentes, e só o da pesquisa importa aqui.
+    // A regra abaixo é a rede de segurança de sempre: resposta com o token genérico,
+    // sem sufixo de turma, é desta edição a partir de 21/09. É a última da fila,
     // então a janela fica aberta — feche-a ao criar a próxima Trilha.
     pesquisaExtra: [{ tokens: ['WEBINAR_TRILHA_INTEGRACAO'], desde: '2026-09-21' }],
     // Meta: as MESMAS campanhas WEBINAR_TRILHA das turmas anteriores. O time voltou a
