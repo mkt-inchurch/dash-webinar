@@ -3,6 +3,19 @@
 // /diagnósticos). As serverless functions leem `?ed=<id>` e usam esta config.
 // Datas ISO "AAAA-MM-DD"; `ate: null` = aberto (até hoje).
 //
+// ANTES DE CRIAR UMA EDIÇÃO AQUI, CADASTRE-A NO BANCO. Desde a migração para o
+// Postgres, `inscritos.edicao_id` tem chave estrangeira para a tabela `edicoes`, que
+// NÃO é derivada deste arquivo — é uma tabela de verdade, preenchida à mão. Sem a
+// linha correspondente, o sync das planilhas quebra inteiro no primeiro lote, com
+// `23503 ... Key (edicao_id)=(...) is not present in table "edicoes"`, e nenhuma
+// edição é atualizada (nem as antigas). O SQL, no projeto `dash-webinar` do Supabase:
+//
+//   insert into edicoes (id, label, ordem, tem_pesquisa, diag_proprio, origens_nao_pagas, ads_campo)
+//   values ('webinar-21-09', 'Webinar Trilha 21/09', 12, true, false,
+//           array['CONTEUDO','EMAIL','ORGANIC','HS_EMAIL','X1_DISPARAI','INDICACAO','EVENTOS','WHATSAPP','GRUPO'], 'source');
+//
+// `ordem` é a posição cronológica (a calculadora fica em 99, fora da fila).
+
 // REGRA DOS DIAGNÓSTICOS (diagDesde/diagAte): a planilha de diagnósticos é ÚNICA e
 // compartilhada por todos os webinars, e a coluna utm_campaign dela NÃO separa
 // edição (os tokens 'WEBINAR_IA_26', 'WEBINAR_TRILHA_INTEGRACAO' e 'YOUTUBE'
