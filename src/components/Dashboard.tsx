@@ -31,7 +31,7 @@ import {
 const sectionTitle = 'eyebrow mb-4';
 
 // Edições do webinar "Trilha da Integração" (tag própria no header).
-const TRILHA_EDITIONS = new Set(['webinar-20-07', 'webinar-03-08', 'webinar-17-08', 'webinar-31-08']);
+const TRILHA_EDITIONS = new Set(['webinar-20-07', 'webinar-03-08', 'webinar-17-08', 'webinar-31-08', 'webinar-21-09']);
 
 // Cor do selo do botão "Verificar" depois de uma conferência, por nível da auditoria.
 const CORES_SELO = {

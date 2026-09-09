@@ -22,6 +22,7 @@ export interface Edition {
 // Mais recente primeiro (a primeira também é o rótulo padrão do seletor).
 export const EDITIONS: Edition[] = [
   { id: 'calculadora-lideres', label: 'Calculadora de Líderes', semPesquisas: true, diagPropria: true },
+  { id: 'webinar-21-09', label: 'Webinar Trilha 21/09' },
   { id: 'webinar-14-09', label: 'Webinar IA 14/09' },
   { id: 'webinar-31-08', label: 'Webinar Trilha 31/08' },
   { id: 'webinar-24-08', label: 'Webinar Igreja Digital 24/08' },
@@ -40,7 +41,7 @@ export const EDITIONS: Edition[] = [
 // quem abria o painel caia numa edicao encerrada havia 5 semanas e lia os numeros dela
 // como se fossem os de agora. Atualize a cada edicao nova, junto com o mesmo valor em
 // api/_editions.js (que e o fallback do servidor quando `?ed=` vem vazio).
-export const DEFAULT_EDITION = 'webinar-24-08';
+export const DEFAULT_EDITION = 'webinar-14-09';
 
 export const editionLabel = (id: string) =>
   EDITIONS.find((e) => e.id === id)?.label ?? id;
