@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { DashboardData, DashboardSeries } from '../types';
+import { ColetaSendflow, DashboardData, DashboardSeries } from '../types';
 import { EDITIONS } from '../lib/editions';
 import { fullRange, applyDateFilter } from '../lib/dateFilter';
 import { Cobertura } from '../lib/auditoria';
@@ -126,7 +126,7 @@ async function applyMetaMetrics(base: DashboardData, series: DashboardSeries, ed
 // snapshot" (a SendAPI bloqueia a conta por 24h quando recebe requisições demais).
 // Se a função não estiver disponível (ex.: `vite dev`, sem serverless) ou a edição
 // ainda não estiver no snapshot, o card zera e entra no aviso de fonte indisponível.
-async function applySendflowMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte, meta: { sendflowGeradoEm?: string }, fresh: boolean): Promise<DashboardData> {
+async function applySendflowMetrics(base: DashboardData, series: DashboardSeries, ed: string, unavailable: string[], motivos: MotivosFonte, meta: { coletaSendflow?: ColetaSendflow }, fresh: boolean): Promise<DashboardData> {
   try {
     const sf = await getJson(`/api/sendflow?ed=${ed}`, fresh);
     if (sf && typeof sf.entradasGrupo === 'number') {
@@ -135,9 +135,12 @@ async function applySendflowMetrics(base: DashboardData, series: DashboardSeries
       // publicado depois de 26/08/2026. Enquanto não vierem, a tela esconde as
       // saídas em qualquer recorte que não seja o período inteiro.
       if (Array.isArray(sf.saidasPorDia)) series.saidasGrupo = sf.saidasPorDia;
-      // Quando o snapshot do Sendflow foi coletado. A auditoria usa isso para
-      // avisar que o card congelou quando o job de hora em hora para de rodar.
-      if (typeof sf.geradoEm === 'string') meta.sendflowGeradoEm = sf.geradoEm;
+      // Quando o snapshot foi coletado E como foi a última tentativa do job. A
+      // auditoria usa os dois: a data diz se o card congelou, o `ok` diz se foi
+      // porque a coleta está QUEBRADA — e aí rodar o workflow não adianta.
+      if (typeof sf.geradoEm === 'string' || sf.coleta) {
+        meta.coletaSendflow = { snapshotEm: sf.geradoEm, ...(sf.coleta || {}) };
+      }
       return {
         ...base,
         entradasGrupo: sf.entradasGrupo,
@@ -252,7 +255,7 @@ export interface EdicaoCarregada {
   series: DashboardSeries;
   unavailable: string[];
   motivos: MotivosFonte;
-  sendflowGeradoEm?: string;
+  coletaSendflow?: ColetaSendflow;
 }
 
 export async function loadEditionData(edition: string, fresh = false): Promise<EdicaoCarregada> {
@@ -262,7 +265,7 @@ export async function loadEditionData(edition: string, fresh = false): Promise<E
   // de outro webinar) e viram aviso na tela.
   const unavailable: string[] = [];
   const motivos: MotivosFonte = {};
-  const extra: { sendflowGeradoEm?: string } = {};
+  const extra: { coletaSendflow?: ColetaSendflow } = {};
   // Em paralelo: são 6 fontes independentes, e em série a tela Comparar somava as
   // seis latências vezes onze edições.
   const partes = await Promise.all([
@@ -333,7 +336,7 @@ export function useDashboardData(edition: string) {
   const [error, setError] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [motivos, setMotivos] = useState<MotivosFonte>({});
-  const [sendflowGeradoEm, setSendflowGeradoEm] = useState<string | undefined>();
+  const [coletaSendflow, setColetaSendflow] = useState<ColetaSendflow | undefined>();
   // Quando esta tela terminou de ler as fontes com sucesso. Vai para o chip
   // "atualizado há X" no topo — sem ele não dá para distinguir um painel fresco
   // de um que parou de atualizar há horas.
@@ -355,7 +358,7 @@ export function useDashboardData(edition: string) {
       setSeries(r.series);
       setUnavailable(r.unavailable);
       setMotivos(r.motivos);
-      setSendflowGeradoEm(r.sendflowGeradoEm);
+      setColetaSendflow(r.coletaSendflow);
       setError(null);
       setHasLoaded(true);
       setAtualizadoEm(Date.now());
@@ -386,7 +389,7 @@ export function useDashboardData(edition: string) {
   useEffect(() => { setVerificadoEm(null); }, [edition]);
 
   return {
-    data, series, loading, hasLoaded, error, unavailable, motivos, sendflowGeradoEm,
+    data, series, loading, hasLoaded, error, unavailable, motivos, coletaSendflow,
     atualizadoEm, verificando, verificadoEm, refetch: verificar,
   };
 }

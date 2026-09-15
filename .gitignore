@@ -13,3 +13,7 @@ tsconfig.tsbuildinfo
 
 # Backups de workflows do n8n: contêm credenciais em texto puro.
 .backups-n8n/
+
+# Artefatos da coleta do Sendflow: vivem na branch `data`, nunca na main.
+sendflow-snapshot.json
+sendflow-status.json

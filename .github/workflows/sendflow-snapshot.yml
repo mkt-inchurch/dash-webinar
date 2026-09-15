@@ -1,5 +1,7 @@
 # Coleta agendada do Sendflow: de hora em hora busca o analytics de cada edição e
-# publica o snapshot na branch `data`, lida pela função /api/sendflow.
+# publica na branch `data`, lida pela função /api/sendflow, DOIS arquivos:
+# `sendflow-snapshot.json` (os dados, só quando a coleta dá certo) e
+# `sendflow-status.json` (o estado desta tentativa, sempre — inclusive na falha).
 #
 # Assim nenhuma visita ao painel toca a SendAPI — o volume de requisições fica fixo
 # (N edições por hora, de um IP do GitHub) em vez de crescer com o tráfego, o que era
@@ -54,11 +56,33 @@ jobs:
           SENDFLOW_API_KEYS: ${{ secrets.SENDFLOW_API_KEYS }}
         run: node scripts/sendflow-snapshot.mjs
 
+      # `if: always()`: roda MESMO quando a coleta falha — é o que publica o
+      # `sendflow-status.json` dizendo que ela falhou e por quê. Sem isso, um job que
+      # quebra de hora em hora é invisível para o painel, que só enxerga a idade do
+      # snapshot e conclui "está velho, rode de novo" (foi o que deixou a coleta
+      # parada por 6 dias em set/2026, com a dica errada na tela o tempo todo).
       - name: Publicar na branch `data`
+        if: always()
         run: |
           set -e
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # Coleta falhou => o script não escreveu snapshot novo. Recupera o último
+          # bom da própria branch `data`, senão a branch órfã abaixo o apagaria e o
+          # card "Entradas no Grupo" iria a zero — exatamente o oposto de preservar.
+          if [ ! -f sendflow-snapshot.json ]; then
+            if git fetch --depth=1 origin data \
+               && git show FETCH_HEAD:sendflow-snapshot.json > snap-anterior.tmp \
+               && [ -s snap-anterior.tmp ]; then
+              mv snap-anterior.tmp sendflow-snapshot.json
+              echo 'Snapshot anterior recuperado da branch `data`.'
+            else
+              # `>` já teria criado o arquivo mesmo com o git show falhando: um
+              # snapshot VAZIO é pior que nenhum (o painel serviria JSON quebrado).
+              rm -f snap-anterior.tmp
+              echo 'Sem snapshot anterior na branch `data` — publicando só o status.'
+            fi
+          fi
           # Branch órfã só com o snapshot (sem histórico do código).
           git checkout --orphan data-tmp
           git rm -rf --cached . >/dev/null
@@ -68,6 +92,11 @@ jobs:
           # desliga o deploy da branch de forma explícita — a Vercel lê esse arquivo do
           # commit que ela ia deployar, então ele precisa viver AQUI, não na main.
           printf '{ "git": { "deploymentEnabled": { "data": false } } }\n' > vercel.json
-          git add -f sendflow-snapshot.json vercel.json
+          # O status vai SEMPRE (é o que distingue "coleta quebrada" de "snapshot
+          # velho"); o snapshot vai se existir — numa falha logo na estreia da branch
+          # não haverá nenhum para preservar.
+          git add -f sendflow-status.json vercel.json
+          # `if`, não `[ ... ] && ...`: sob `set -e` um teste falso encerraria o step.
+          if [ -f sendflow-snapshot.json ]; then git add -f sendflow-snapshot.json; fi
           git commit -m 'chore(data): snapshot do Sendflow [skip ci]'
           git push -f origin data-tmp:data

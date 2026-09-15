@@ -16,7 +16,7 @@
 // comprovadamente errado. Diferenças esperadas (alcance não somável por dia,
 // edição futura sem dado) são AVISO ou nem aparecem.
 
-import { DashboardData, DashboardSeries } from '../types';
+import { ColetaSendflow, DashboardData, DashboardSeries } from '../types';
 import { Edition, EDITIONS } from './editions';
 
 export type Nivel = 'ok' | 'aviso' | 'erro';
@@ -64,7 +64,7 @@ export function auditarEdicao(
   series: DashboardSeries,
   unavailable: string[],
   motivos: Record<string, string>,
-  sendflowGeradoEm?: string
+  coleta?: ColetaSendflow
 ): Checagem[] {
   const cs: Checagem[] = [];
   const add = (id: string, titulo: string, nivel: Nivel, detalhe: string) =>
@@ -199,18 +199,50 @@ export function auditarEdicao(
       'filtro de período: aparecem só em "Todo período". As entradas acompanham normalmente.');
   }
 
-  // ---- 7. Frescor do snapshot do Sendflow -------------------------------
+  // ---- 7. Estado da coleta do Sendflow ----------------------------------
   // /api/sendflow não fala com a SendAPI: serve o snapshot que o GitHub Actions
   // publica de hora em hora. Se o job parar, o card congela sem avisar.
-  if (sendflowGeradoEm) {
-    const idadeH = (Date.now() - new Date(sendflowGeradoEm).getTime()) / 3_600_000;
-    if (idadeH > 3) {
-      add('sendflow-idade', 'Snapshot do Sendflow', 'aviso',
-        `A última coleta foi há ${idadeH.toFixed(0)}h. O card "Entradas no Grupo" está congelado nesse retrato — ` +
-        'rode o workflow "Sendflow snapshot" no GitHub Actions.');
-    } else {
-      add('sendflow-idade', 'Snapshot do Sendflow', 'ok',
-        `Coletado há ${idadeH < 1 ? 'menos de 1h' : `${idadeH.toFixed(0)}h`}.`);
+  //
+  // DUAS FALHAS DIFERENTES, DUAS AÇÕES OPOSTAS — e é por isso que esta checagem não
+  // olha só a idade do snapshot:
+  //
+  //   (a) o job NÃO RODOU (cron atrasado, workflow desabilitado): a coleta em si está
+  //       boa e rodar o workflow resolve na hora;
+  //   (b) o job RODA E FALHA: rodar de novo só repete o erro — a ação é outra (aprovar
+  //       a delegação no Sendflow, trocar a chave, esperar o bloqueio esfriar).
+  //
+  // Em set/2026 a (b) durou SEIS DIAS despercebida: o job falhava de hora em hora e a
+  // tela dizia "a última coleta foi há 140h — rode o workflow", que era exatamente a
+  // única coisa que não ia funcionar. O job agora publica o próprio estado a cada
+  // tentativa (`sendflow-status.json`), e é ele que separa os dois casos aqui.
+  if (coleta && (coleta.snapshotEm || coleta.em)) {
+    const horas = (iso?: string) =>
+      iso ? (Date.now() - new Date(iso).getTime()) / 3_600_000 : undefined;
+    const idadeSnapshot = horas(coleta.snapshotEm);
+    const desdeTentativa = horas(coleta.em);
+    const quando = (h: number) => (h < 1 ? 'menos de 1h' : `${h.toFixed(0)}h`);
+
+    if (coleta.ok === false) {
+      // (b) A coleta está quebrada. ERRO, não aviso: o card mostra um retrato do
+      // passado com cara de número atual, e ninguém vai perceber sozinho.
+      const desde = desdeTentativa !== undefined ? ` (última tentativa há ${quando(desdeTentativa)})` : '';
+      const congelado = idadeSnapshot !== undefined
+        ? `O card "Entradas no Grupo" está congelado no retrato de ${quando(idadeSnapshot)} atrás. `
+        : 'O card "Entradas no Grupo" está sem dado. ';
+      // A frase fixa diz só o DIAGNÓSTICO (o job roda e erra — logo, não é caso de
+      // rodar de novo); o que fazer vem da `dica`, que é específica por causa.
+      add('sendflow-coleta', 'Coleta do Sendflow', 'erro',
+        `A coleta está FALHANDO${desde}: o job roda e dá erro, não é só um snapshot velho. ` +
+        `${congelado}${coleta.dica || coleta.causa || 'Veja o log em Actions → "Sendflow snapshot".'}`);
+    } else if (idadeSnapshot !== undefined && idadeSnapshot > 3) {
+      // (a) A última tentativa deu certo (ou não temos status), mas faz tempo: o job
+      // parou de rodar. Aqui, sim, rodar o workflow resolve.
+      add('sendflow-coleta', 'Snapshot do Sendflow', 'aviso',
+        `A última coleta foi há ${quando(idadeSnapshot)} e o card "Entradas no Grupo" está congelado nesse ` +
+        'retrato. A coleta em si não acusou erro, então o job só não rodou — rode o workflow ' +
+        '"Sendflow snapshot" no GitHub Actions.');
+    } else if (idadeSnapshot !== undefined) {
+      add('sendflow-coleta', 'Snapshot do Sendflow', 'ok', `Coletado há ${quando(idadeSnapshot)}.`);
     }
   }
 

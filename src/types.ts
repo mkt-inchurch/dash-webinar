@@ -97,3 +97,19 @@ export interface DashboardSeries {
   icps: DiaIcp[];
   meta: DiaMeta[];
 }
+
+// Estado da coleta do Sendflow, publicado pelo job de hora em hora a cada tentativa
+// (`sendflow-status.json` na branch `data`) e servido junto do card por /api/sendflow.
+//
+// POR QUE ISSO É UM OBJETO E NÃO SÓ UMA DATA: a idade do snapshot não distingue as
+// duas falhas que pedem reações opostas — um job que não rodou (rodar resolve) e um
+// job que roda e falha (rodar não resolve). `ok: false` é o segundo caso, e `dica`
+// já vem com o que fazer. Pode chegar `undefined`: snapshot anterior a set/2026, ou
+// o arquivo de status ainda não publicado.
+export interface ColetaSendflow {
+  snapshotEm?: string; // `geradoEm` do snapshot que está na tela
+  em?: string;         // quando foi a ÚLTIMA tentativa (deu certo ou não)
+  ok?: boolean;
+  causa?: string;      // resposta crua da SendAPI, para o log
+  dica?: string;       // o que fazer, em português
+}

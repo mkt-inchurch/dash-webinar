@@ -61,7 +61,7 @@ export function Dashboard() {
   });
   const {
     data: rawData, series, loading, hasLoaded, error, unavailable, motivos,
-    sendflowGeradoEm, atualizadoEm, verificando, verificadoEm, refetch,
+    coletaSendflow, atualizadoEm, verificando, verificadoEm, refetch,
   } = useDashboardData(edition);
   // Muda a cada verificação manual. As tabelas que buscam a própria fonte (UTMs) e a
   // tela de Comparar escutam esta chave para reler junto — antes o botão atualizava
@@ -141,9 +141,9 @@ export function Dashboard() {
   // com a série toda acusaria erro em toda seleção de período.
   const checagens = useMemo(
     () => (hasLoaded
-      ? auditarEdicao(EDITIONS.find((e) => e.id === edition), rawData, series, unavailable, motivos, sendflowGeradoEm)
+      ? auditarEdicao(EDITIONS.find((e) => e.id === edition), rawData, series, unavailable, motivos, coletaSendflow)
       : []),
-    [hasLoaded, edition, rawData, series, unavailable, motivos, sendflowGeradoEm]
+    [hasLoaded, edition, rawData, series, unavailable, motivos, coletaSendflow]
   );
 
   // Texto do botão logo depois da verificação: o que a auditoria encontrou nos dados
