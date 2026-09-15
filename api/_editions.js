@@ -305,13 +305,25 @@ export const EDITIONS = {
     pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-07-20', ate: '2026-08-09' }],
     inscritosAdsField: 'source',
     inscritosAdsExclude: ORIGENS_NAO_PAGAS,
-    // Campanhas "WEBINAR_IA_04" (ids 120248071509010003 etc.). ATENÇÃO: em 28/07 o
+    // Campanhas "WEBINAR_IA" (ids 120248071509010003 etc.). ATENÇÃO: em 28/07 o
     // time RENOMEOU essas MESMAS campanhas de "| 27.07" para "| 10-08" e passou a
     // usá-las na captação do 10/08 — 27/07 e 10/08 COMPARTILHAM as campanhas. Por
     // isso o 27/07 fecha em 27/07 (metaAte): o gasto de 28/07 em diante é do 10/08.
+    //
+    // ⚠️ O match era 'WEBINAR_IA_04' e QUEBROU em 15/09/2026: a campanha principal
+    // (120248071509010003) foi renomeada mais uma vez e o sufixo "_04" CAIU do nome
+    // — virou "[IN][INCH][LEADS] TOPO DE FUNIL | WEBINAR_IA | 14-09". Como o match é
+    // substring do nome ATUAL, ela parou de casar e levou embora R$ 3.003,16 desta
+    // edição (e R$ 1.065,65 do 10/08): R$ 4.068,81 de mídia sumiram do painel em
+    // silêncio, e só a checagem de cobertura pegou. O match voltou para o token
+    // estável 'WEBINAR_IA', que sobrevive a todas as renomeações desta linha; quem
+    // separa as edições continua sendo a DATA, como no 15/06, 04/07 e 13/07.
+    // Conferido na Graph API antes de trocar: nenhuma outra campanha "WEBINAR_IA"
+    // (IA_02 | 29_06, [2], [3] Andromêda, a original) gastou um centavo entre 14/07
+    // e 30/08, então o match largo não traz verba alheia para cá nem para o 10/08.
     metaDesde: '2026-07-14',
     metaAte: '2026-07-27',
-    metaMatch: 'WEBINAR_IA_04',
+    metaMatch: 'WEBINAR_IA',
     // Release dedicada (campanha "Webinar: IA na Igreja (27/07)"). Modo campaign:
     // entradas = adds, saídas = removes por dia.
     sendflowRelease: 'JWAVGWZfRnfIXT4eyyo4',
@@ -348,9 +360,13 @@ export const EDITIONS = {
     inscritosAdsField: 'source',
     inscritosAdsExclude: ORIGENS_NAO_PAGAS,
     // Meta: o 10/08 REUSA as MESMAS campanhas do 27/07 — o time renomeou
-    // "WEBINAR_IA_04 | 27.07" para "WEBINAR_IA_04 | 10-08" (mesmos ids). Como o nome
-    // ainda contém WEBINAR_IA_04, a separação 27/07 × 10/08 é só por DATA: o 27/07
-    // fecha em 27/07 (metaAte) e o 10/08 conta de 28/07 (metaDesde) em diante.
+    // "WEBINAR_IA_04 | 27.07" para "WEBINAR_IA_04 | 10-08" (mesmos ids). A separação
+    // 27/07 × 10/08 é só por DATA: o 27/07 fecha em 27/07 (metaAte) e o 10/08 conta
+    // de 28/07 (metaDesde) em diante.
+    //
+    // ⚠️ O match era 'WEBINAR_IA_04' e quebrou em 15/09/2026 junto com o do 27/07 —
+    // a campanha principal perdeu o "_04" do nome numa renomeação e R$ 1.065,65
+    // desta edição saíram do painel. Ver a nota longa em 'webinar-27-07'.
     //
     // E a MESMA campanha foi renomeada de novo, agora para "| 14-09" (01/09/2026).
     // Por isso o 10/08 fecha em 30/08: o gasto de 31/08 em diante é do 14/09. Sem
@@ -359,7 +375,7 @@ export const EDITIONS = {
     // corte não descarta entrega nenhuma do 10/08.
     metaDesde: '2026-07-28',
     metaAte: '2026-08-30',
-    metaMatch: 'WEBINAR_IA_04',
+    metaMatch: 'WEBINAR_IA',
     // Release dedicada "Webinar: IA na Igreja (10/08)" (live 10/08 19h). Modo
     // campaign: entradas = adds, saídas = removes por dia. Sem corte (release só do 10/08).
     sendflowRelease: 'ZcU7ANHYxOiMroIb3biG',
@@ -562,20 +578,25 @@ export const EDITIONS = {
     // 1.303 impressões em 31/08; nada entre 11/08 e 30/08).
     metaDesde: '2026-08-31',
     metaAte: null,
-    // '14-09' é o termo desta edição no nome da campanha, e isola exatamente uma
-    // campanha em toda a conta (conferido no histórico completo). É mais preciso que
-    // 'WEBINAR_IA_04', que casaria também as campanhas antigas "| 10-08".
+    // O match era '14-09' — o sufixo de data no nome da campanha — e o comentário
+    // antigo aqui mandava cair para 'WEBINAR_IA_04' se a renomeação seguinte o
+    // quebrasse. Esse conselho estava ERRADO e custou caro: em 15/09/2026 a campanha
+    // foi renomeada de novo e quem quebrou foi justamente o 'WEBINAR_IA_04' do 27/07
+    // e do 10/08 — o sufixo "_04" caiu do nome e levou R$ 4.068,81 de mídia para fora
+    // do painel. O único token desta linha que sobreviveu a TODAS as renomeações
+    // ("| 27.07" → "| 10-08" → "| 14-09", com e sem "_04") é 'WEBINAR_IA'.
     //
-    // ⚠️ O PREÇO: este match vive do sufixo de data, e esta campanha já foi renomeada
-    // três vezes. No dia em que ela virar "| 28-09", o match para de casar e o card
-    // desta edição ZERA, inclusive o passado. Se isso acontecer, volte para
-    // 'WEBINAR_IA_04' — esse token sobreviveu a todas as renomeações — e mantenha a
-    // separação por data, que é o que já faz o 27/07 e o 10/08 conviverem.
+    // Por isso as três edições que dividem esta campanha usam agora o mesmo match
+    // largo, e quem as separa é a DATA — igual ao 15/06, 04/07 e 13/07. Conferido na
+    // Graph API antes de trocar: de 31/08 a 15/09 as únicas campanhas "WEBINAR_IA"
+    // com gasto são as duas desta edição (R$ 4.229,40 + R$ 146,59 = R$ 4.375,99, o
+    // mesmo total de antes), e as antigas (IA_02 | 29_06, [2], [3] Andromêda, a
+    // original) estão em R$ 0,00 desde julho.
     //
     // Não confundir com a UTM Source que chega na planilha,
     // "{{[IN][INCH][LEADS]TOPO_DE_FUNIL_WEBINAR_IA_14-09}}": aquilo é um campo da LP,
     // não o nome da campanha, e a URL do anúncio ainda carrega o sufixo 10-08.
-    metaMatch: '14-09',
+    metaMatch: 'WEBINAR_IA',
     // Campanha "Webinar: IA na Igreja (14/09)" no Sendflow.
     sendflowRelease: 'i6TvQNcy63TFeaQ5eyro',
     sendflowGroup: null,
