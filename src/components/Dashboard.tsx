@@ -6,6 +6,7 @@ import { TrendCharts } from './TrendCharts';
 import { FunilCharts } from './FunilCharts';
 import { CampanhaBars } from './CampanhaBars';
 import { CampanhasTable } from './CampanhasTable';
+import { ResumoTable } from './ResumoTable';
 import { EditionsComparison } from './EditionsComparison';
 import { MetricChart } from './MetricChart';
 import { UtmTable } from './UtmTable';
@@ -540,6 +541,19 @@ export function Dashboard() {
 
           {/* ---------------- RESTO DO PAINEL ---------------- */}
           <main className="container-app py-8 space-y-8">
+            {/* Resumo da edição — mídia e funil na mesma tabela, para o relatório.
+                Vem antes dos cards de propósito: é a leitura de fechamento, e quem
+                abre o painel para escrever o resultado da edição para aqui. */}
+            <div>
+              <h2 className={sectionTitle}>Resumo da edição</h2>
+              <ResumoTable
+                data={data}
+                edicaoLabel={tagEdicao}
+                periodoLabel={isFullRange(activeRange, full) ? 'período completo' : `${ddmm(activeRange.start)} a ${ddmm(activeRange.end)}`}
+                temPesquisas={temPesquisas}
+              />
+            </div>
+
             {/* KPIs — Meta Ads */}
             <div>
               <h2 className={sectionTitle}>Meta Ads</h2>
