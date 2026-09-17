@@ -21,7 +21,7 @@
 // era contado em 2, 3 ou 4 edições: o painel somava 715 diagnósticos onde existiam
 // 416. Ao criar uma edição nova, feche a janela da edição imediatamente anterior.
 //
-// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08 · 14/09 · 21/09
+// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08 · 14/09 · 21/09 · 28/09
 // (a Calculadora de Líderes fica fora dessa fila: não usa a planilha compartilhada
 // de diagnósticos, e sim uma coluna da própria planilha de participantes.)
 
@@ -568,7 +568,9 @@ export const EDITIONS = {
     pesquisaDesde: null,
     pesquisaAte: null,
     pesquisaUtmMatch: 'WEBINAR_IA_14_SET',
-    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-09-14' }],
+    // Fechada em 27/09 ao criar a edição de 28/09: resposta com o token genérico a
+    // partir de 28/09 é da turma seguinte.
+    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-09-14', ate: '2026-09-27' }],
     // A mídia desta edição não ganhou campanha nova: o time RENOMEOU a de sempre,
     // "[IN][INCH][LEADS] TOPO DE FUNIL | WEBINAR_IA_04" (id 120248071509010003), de
     // "| 10-08" para "| 14-09" — o mesmo movimento que já tinha levado ela de
@@ -577,7 +579,17 @@ export const EDITIONS = {
     // fecha em 30/08 e esta começa em 31/08, primeiro dia de entrega (R$ 61,71 /
     // 1.303 impressões em 31/08; nada entre 11/08 e 30/08).
     metaDesde: '2026-08-31',
-    metaAte: null,
+    // FECHADA no dia do webinar ao criar a edição de 28/09. A campanha principal
+    // (120248071509010003) entregou até 14/09 e parou; de 15/09 em diante o que
+    // roda com 'WEBINAR_IA' no nome é a captação da turma seguinte.
+    //
+    // O gasto de 11 a 14/09 da campanha "[2]" (120249217957880003) FICA AQUI, e
+    // isso não é descuido: ela nasceu como "…| WEBINAR_IA | 14-09", trouxe
+    // inscritos desta turma (UTM Source "[IN][INCH][LEADS][2] … | 14-09" na aba
+    // Inscritos_14_09, em 12/09) e só DEPOIS do webinar foi renomeada para
+    // "| 28-09" para servir a turma nova. O nome de hoje não diz de quem era o
+    // gasto de ontem — quem diz é a data.
+    metaAte: '2026-09-14',
     // O match era '14-09' — o sufixo de data no nome da campanha — e o comentário
     // antigo aqui mandava cair para 'WEBINAR_IA_04' se a renomeação seguinte o
     // quebrasse. Esse conselho estava ERRADO e custou caro: em 15/09/2026 a campanha
@@ -673,9 +685,68 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 21/09 (futuro): diagnósticos da planilha compartilhada a partir daí.
-    // Última da fila: janela aberta. Feche quando a próxima edição for criada.
+    // Webinar 21/09: diagnósticos da planilha compartilhada a partir daí, até a
+    // véspera do próximo webinar em ordem cronológica — que passou a ser o de
+    // 28/09 (regra dos diagnósticos, no topo do arquivo).
     diagDesde: '2026-09-21',
+    diagAte: '2026-09-27',
+  },
+
+  // Webinar IA 28/09 — turma seguinte à de 14/09. Aba de inscritos e release do
+  // Sendflow próprias; Meta reusando as MESMAS campanhas WEBINAR_IA (separação por
+  // DATA, ver abaixo) e pesquisa separada pela utm_campaign da turma. A mídia desta
+  // turma começou a entregar em 17/09 e a aba recebeu as 3 primeiras inscrições no
+  // mesmo dia.
+  'webinar-28-09': {
+    id: 'webinar-28-09',
+    label: 'Webinar IA 28/09',
+    inscritosGid: 1525200147, // aba Inscritos_28_09 (planilha padrão do IA)
+    // Aba dedicada e recém-criada: não há linha solta anterior à turma, então não
+    // precisa de piso. Se o n8n gravar aqui alguma inscrição antiga, coloque a
+    // véspera da primeira inscrição real em `inscritosDesde`, como no 14/09.
+    inscritosDesde: null,
+    inscritosAte: null,
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
+    // Pesquisa: mesma planilha "Pesquisa Geral", separada pela utm_campaign da
+    // turma. O match para no número do dia porque o time escreve o mesmo token de
+    // vários jeitos (_14_SET, _10_AGO, _27_JUL): '..._28' cobre as variantes e não
+    // colide com nenhum token existente na planilha (conferido em 17/09).
+    // ⚠️ Em 17/09 ainda não havia NENHUMA resposta com esse token — o link da
+    // pesquisa desta turma provavelmente ainda não foi trocado. Até trocarem,
+    // Pesquisas/ICPs/UTMs desta edição ficam em 0 e a `pesquisaExtra` abaixo é a
+    // única rede (e ela só vale de 28/09 em diante).
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    pesquisaUtmMatch: 'WEBINAR_IA_28',
+    // Rede de segurança de sempre: resposta com o token genérico, sem sufixo de
+    // turma, é desta edição a partir do dia do webinar. Última da fila → janela
+    // aberta; feche-a ao criar a próxima edição de IA.
+    pesquisaExtra: [{ tokens: ['WEBINAR_IA'], desde: '2026-09-28' }],
+    // Meta: as MESMAS campanhas 'WEBINAR_IA' de sempre, agora com o sufixo "28-09"
+    // / "28/09" no nome ([1], [2] e [3]). O match continua sendo o token largo, e
+    // quem separa é a DATA: o 14/09 fecha em 14/09 e esta conta de 15/09.
+    //
+    // NÃO troque por '28-09' para "isolar" a turma: metade das campanhas escreve
+    // "28/09" com barra, e o sufixo é reescrito a cada turma — foi assim que, em
+    // 15/09, uma renomeação levou R$ 4.068,81 para fora do painel. 'WEBINAR_IA' é
+    // o único pedaço do nome que sobreviveu a todas as renomeações desde junho.
+    //
+    // O corte é limpo: as campanhas WEBINAR_IA não entregaram nada em 15 e 16/09
+    // (só Trilha e vídeo-view rodaram), e voltaram em 17/09 já como 28-09.
+    metaDesde: '2026-09-15',
+    metaAte: null,
+    metaMatch: 'WEBINAR_IA',
+    // Release dedicada "Webinar: IA na Igreja (28/09)" (slug
+    // webinar-ia-na-igreja-28-09). Modo campaign: entradas = adds, saídas =
+    // removes por dia.
+    sendflowRelease: 'R9Jhl303vILIi3ZJHWMm',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Webinar 28/09 (futuro): diagnósticos da planilha compartilhada a partir daí.
+    // Última da fila: janela aberta. Feche quando a próxima edição for criada.
+    diagDesde: '2026-09-28',
     diagAte: null,
   },
 
@@ -738,7 +809,7 @@ export const EDITIONS = {
 // desconhecido). Deve ser a edicao com captacao ATIVA -- ficou parada no 13/07 por
 // meses, entao quem abria o painel caia numa edicao encerrada havia 5 semanas.
 // Atualize junto com a criacao de cada edicao nova (e o mesmo valor em src/lib/editions.ts).
-export const DEFAULT_EDITION = 'webinar-14-09';
+export const DEFAULT_EDITION = 'webinar-28-09';
 
 // "DD/MM/AAAA[ HH:MM:SS]" -> "AAAA-MM-DDTHH:MM:SS" (ordenável). null se inválido.
 // Sem hora vira 00:00:00. Serve tanto p/ "Submitted At" quanto p/ "Data" (só dia).
