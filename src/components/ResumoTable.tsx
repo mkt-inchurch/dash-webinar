@@ -11,7 +11,8 @@ import { formatCurrency, formatNumber, formatPercent, cn } from '../lib/utils';
 // POR QUE EXISTE, se os mesmos números já estão nos cards: o relatório da edição é
 // escrito fora do painel. Com os cards espalhados em duas seções, copiar 14 números
 // significa 14 idas e vindas — e é aí que os valores chegam errados no documento. O
-// botão "Copiar" entrega a tabela inteira em TSV, pronta para colar no Sheets.
+// botão copia a COLUNA DE VALORES inteira, na ordem da tabela, para cair de uma vez
+// na planilha do relatório, que já tem os rótulos.
 //
 // Só DUAS métricas aqui não saem prontas de nenhuma API: CPL real (investimento ÷
 // inscritos ADS, calculado em dateFilter.ts) e C-MQL (investimento ÷ MQL), abaixo.
@@ -86,7 +87,9 @@ export const ResumoTable: FC<ResumoTableProps> = ({ data, edicaoLabel, periodoLa
     },
     {
       label: 'Frequência',
-      valor: (data.frequencia ?? 0).toFixed(2),
+      // Vírgula decimal, não o ponto do toFixed que os cards usam: este número é
+      // colado numa planilha em pt-BR, e lá "2.87" entra como texto (ou vira data).
+      valor: (data.frequencia ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       leitura: 'impressões ÷ alcance',
       ajuda: 'Quantas vezes, em média, cada pessoa viu o anúncio. Acima de 4 o público satura.',
       foraDoRecorte: data.alcanceNoPeriodo === false,
@@ -159,12 +162,16 @@ export const ResumoTable: FC<ResumoTableProps> = ({ data, edicaoLabel, periodoLa
   ];
 
   const copiar = async () => {
-    // TSV: colado no Sheets cai uma métrica por linha, valor na coluna B. Os números
-    // vão formatados em pt-BR de propósito — o destino é relatório, não recálculo.
-    const texto = [
-      `Resumo — ${edicaoLabel} (${periodoLabel})`,
-      ...linhas.map((l) => `${l.label}\t${l.valor}${l.foraDoRecorte ? '\t(período total da edição)' : ''}`),
-    ].join('\n');
+    // SÓ os valores, um por linha, na ordem exata da tabela: o destino é uma
+    // planilha que já tem os rótulos na coluna ao lado, então nome de métrica,
+    // título e a coluna "Leitura" só atrapalhariam a colagem. Os números vão
+    // formatados em pt-BR, como estão na tela.
+    //
+    // A ORDEM é o contrato desta colagem. Cuidado ao mexer em `linhas`: nas
+    // edições sem etapa de pesquisa a tabela tem uma linha a menos — por isso o
+    // botão confirma QUANTOS valores foram para a área de transferência, e não
+    // apenas "copiado": colar 13 numa planilha de 14 desalinha tudo em silêncio.
+    const texto = linhas.map((l) => l.valor).join('\n');
 
     // Dois caminhos porque o primeiro nem sempre existe: a Clipboard API depende de
     // permissão do navegador e é negada em webviews e em página servida por http.
@@ -215,12 +222,16 @@ export const ResumoTable: FC<ResumoTableProps> = ({ data, edicaoLabel, periodoLa
           )}
           title={
             estado === 'erro'
-              ? 'O navegador bloqueou o acesso à área de transferência nesta página. Selecione a tabela e copie com Cmd+C.'
-              : 'Copia a tabela inteira em TSV, pronta para colar no Sheets ou no relatório'
+              ? 'O navegador bloqueou o acesso à área de transferência nesta página. Selecione a coluna e copie com Cmd+C.'
+              : `Copia só a coluna de valores (${linhas.length} linhas, na ordem da tabela), para colar direto numa planilha que já tem os rótulos`
           }
         >
           {estado === 'copiado' ? <Check className="w-3.5 h-3.5 text-in-green-text" /> : <Copy className="w-3.5 h-3.5" />}
-          {estado === 'copiado' ? 'Copiado' : estado === 'erro' ? 'Copie com Cmd+C' : 'Copiar tabela'}
+          {estado === 'copiado'
+            ? `${linhas.length} valores copiados`
+            : estado === 'erro'
+              ? 'Copie com Cmd+C'
+              : 'Copiar valores'}
         </button>
       </div>
 
