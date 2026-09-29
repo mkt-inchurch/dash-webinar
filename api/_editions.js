@@ -21,7 +21,7 @@
 // era contado em 2, 3 ou 4 edições: o painel somava 715 diagnósticos onde existiam
 // 416. Ao criar uma edição nova, feche a janela da edição imediatamente anterior.
 //
-// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08 · 14/09 · 21/09 · 28/09
+// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08 · 14/09 · 21/09 · 28/09 · 05/10
 // (a Calculadora de Líderes fica fora dessa fila: não usa a planilha compartilhada
 // de diagnósticos, e sim uma coluna da própria planilha de participantes.)
 
@@ -659,9 +659,9 @@ export const EDITIONS = {
     // utm que aparece na planilha de INSCRITOS, onde o link orgânico ainda leva
     // ..._31_AGO — são dois links diferentes, e só o da pesquisa importa aqui.
     // A regra abaixo é a rede de segurança de sempre: resposta com o token genérico,
-    // sem sufixo de turma, é desta edição a partir de 21/09. É a última da fila,
-    // então a janela fica aberta — feche-a ao criar a próxima Trilha.
-    pesquisaExtra: [{ tokens: ['WEBINAR_TRILHA_INTEGRACAO'], desde: '2026-09-21' }],
+    // sem sufixo de turma, é desta edição de 21/09 até a véspera da Trilha
+    // seguinte (05/10), que assume o token a partir do dia do webinar dela.
+    pesquisaExtra: [{ tokens: ['WEBINAR_TRILHA_INTEGRACAO'], desde: '2026-09-21', ate: '2026-10-04' }],
     // Meta: as MESMAS campanhas WEBINAR_TRILHA das turmas anteriores. O time voltou a
     // fazer o movimento de sempre — RENOMEOU a campanha "LP01" (id
     // 120247996429570003, a mesma que serviu 20/07, 03/08, 17/08 e 31/08) de
@@ -676,7 +676,10 @@ export const EDITIONS = {
     // de 14/09). 'WEBINAR_TRILHA' sobrevive a todas as renomeações e casa também as
     // campanhas 02–07, que podem voltar a rodar para esta turma.
     metaDesde: '2026-09-08',
-    metaAte: null,
+    // Fechada em 22/09: as campanhas "…_21/09" ainda entregaram nesse dia e as 23
+    // inscrições pagas dele caíram na aba Inscritos_21_09. A turma 05/10 começa a
+    // contar em 23/09, dia em que as campanhas "…_05/10" estrearam.
+    metaAte: '2026-09-22',
     metaMatch: 'WEBINAR_TRILHA',
     // Release dedicada "Webinar: Trilha de Integração (21/09)" (slug
     // webinar-integracao-21-09). Modo campaign: entradas = adds, saídas = removes
@@ -744,9 +747,56 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 28/09 (futuro): diagnósticos da planilha compartilhada a partir daí.
-    // Última da fila: janela aberta. Feche quando a próxima edição for criada.
+    // Webinar 28/09: diagnósticos da planilha compartilhada a partir daí, até a
+    // véspera do próximo webinar em ordem cronológica — a Trilha de 05/10.
     diagDesde: '2026-09-28',
+    diagAte: '2026-10-04',
+  },
+
+  // Webinar Trilha 05/10 — turma seguinte à de 21/09 (Pedro Franco, live segunda
+  // 05/10 às 19h). Aba de inscritos, release do Sendflow e campanhas do Meta
+  // próprias; pesquisa separada pela utm_campaign da turma.
+  'webinar-05-10': {
+    id: 'webinar-05-10',
+    label: 'Webinar Trilha 05/10',
+    inscritosSheet: '1q42q1ZlHGmNG0w6Fkm1lM-PazsrI8fzf78EQoPmznR0',
+    inscritosGid: 1605993952, // aba Inscritos_05_10
+    // Aba dedicada; a 1ª linha é de 22/09 (sem a linha solta de 10/07 que as abas
+    // 31/08 e 21/09 carregavam), então não precisa de piso.
+    inscritosDesde: null,
+    inscritosAte: null,
+    // Critério INVERSO de sempre. ⚠️ O pago CONTINUA chegando com a macro
+    // `{{TRILHA_31.08}}` (herança de duas turmas atrás, 331 de 340 linhas em 29/09).
+    // Não atrapalha: o critério não depende da macro e a separação é pela aba.
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
+    // Pesquisa: o link desta turma já nasceu com a utm própria
+    // (WEBINAR_TRILHA_INTEGRACAO_05_OUT, 76 respostas de 22 a 29/09). O match para
+    // no número do dia, como nas outras Trilhas, e não colide com nenhum token.
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    pesquisaUtmMatch: 'WEBINAR_TRILHA_INTEGRACAO_05',
+    // Rede de segurança: token genérico da linha é desta edição a partir do dia do
+    // webinar. Última Trilha da fila → aberta; feche ao criar a próxima.
+    pesquisaExtra: [{ tokens: ['WEBINAR_TRILHA_INTEGRACAO'], desde: '2026-10-05' }],
+    // Meta: desta vez o time CRIOU campanhas novas ("… | WEBINAR_TRILHA_05/10 |
+    // TESTE CRIATIVO 01–04", ids 120249407338280003, 120249407318340003,
+    // 120249408991060003, 120249409005300003) em vez de só renomear a antiga. O
+    // match continua o token largo e quem separa é a DATA: elas estrearam em 23/09,
+    // e as "…_21/09" pararam em 22/09 (o 21/09 fecha nesse dia).
+    // NÃO troque por '05/10': o nome é reescrito a cada turma (ver 21/09).
+    metaDesde: '2026-09-23',
+    metaAte: null,
+    metaMatch: 'WEBINAR_TRILHA',
+    // Release dedicada "Webinar: Trilha de Integração (05/10)" (slug
+    // webinar-integracao-05-10). Modo campaign, sem corte.
+    sendflowRelease: '0Vx6zQZ94ZWKmbX7gXqT',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Webinar 05/10 (futuro). Última da fila: janela aberta. Feche quando a
+    // próxima edição (de qualquer linha) for criada.
+    diagDesde: '2026-10-05',
     diagAte: null,
   },
 
