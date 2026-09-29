@@ -859,7 +859,7 @@ export const EDITIONS = {
 // desconhecido). Deve ser a edicao com captacao ATIVA -- ficou parada no 13/07 por
 // meses, entao quem abria o painel caia numa edicao encerrada havia 5 semanas.
 // Atualize junto com a criacao de cada edicao nova (e o mesmo valor em src/lib/editions.ts).
-export const DEFAULT_EDITION = 'webinar-28-09';
+export const DEFAULT_EDITION = 'webinar-05-10';
 
 // "DD/MM/AAAA[ HH:MM:SS]" -> "AAAA-MM-DDTHH:MM:SS" (ordenável). null se inválido.
 // Sem hora vira 00:00:00. Serve tanto p/ "Submitted At" quanto p/ "Data" (só dia).

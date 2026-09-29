@@ -43,7 +43,7 @@ export const EDITIONS: Edition[] = [
 // quem abria o painel caia numa edicao encerrada havia 5 semanas e lia os numeros dela
 // como se fossem os de agora. Atualize a cada edicao nova, junto com o mesmo valor em
 // api/_editions.js (que e o fallback do servidor quando `?ed=` vem vazio).
-export const DEFAULT_EDITION = 'webinar-28-09';
+export const DEFAULT_EDITION = 'webinar-05-10';
 
 export const editionLabel = (id: string) =>
   EDITIONS.find((e) => e.id === id)?.label ?? id;
