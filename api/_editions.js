@@ -21,7 +21,7 @@
 // era contado em 2, 3 ou 4 edições: o painel somava 715 diagnósticos onde existiam
 // 416. Ao criar uma edição nova, feche a janela da edição imediatamente anterior.
 //
-// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08 · 14/09 · 21/09 · 28/09 · 05/10
+// Ordem cronológica: 15/06 · 04/07 · 13/07 · 20/07 · 27/07 · 03/08 · 10/08 · 17/08 · 24/08 · 31/08 · 14/09 · 21/09 · 28/09 · 05/10 · 19/10
 // (a Calculadora de Líderes fica fora dessa fila: não usa a planilha compartilhada
 // de diagnósticos, e sim uma coluna da própria planilha de participantes.)
 
@@ -794,9 +794,55 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 05/10 (futuro). Última da fila: janela aberta. Feche quando a
-    // próxima edição (de qualquer linha) for criada.
+    // Webinar 05/10. Fechada na véspera do próximo webinar em ordem cronológica,
+    // o de Estrutura de Cuidado (19/10).
     diagDesde: '2026-10-05',
+    diagAte: '2026-10-18',
+  },
+
+  // Webinar Estrutura de Cuidado 19/10 — LINHA NOVA (não é Trilha nem IA): "Como
+  // criar uma estrutura de cuidado que retém pessoas na igreja", Pedro Franco + TBC
+  // Jacuí, live segunda 19/10 às 19h. LP em inchurch.com.br/webinar-cuidado/, fluxo
+  // n8n "[MKT] Webinar Estrutura de Cuidado" (i1SUzkfX6H40xfl2), formulário HubSpot
+  // 744ee5b2-b903-4201-b38e-1577aee391dc. Criada em 01/10/2026, antes da captação.
+  'webinar-19-10': {
+    id: 'webinar-19-10',
+    label: 'Webinar Cuidado 19/10',
+    // Planilha PRÓPRIA da linha ("[MKT] Webinar - Estrutura de Cuidado (Pedro)"),
+    // não a da Trilha. Mesmas 12 colunas. Aba dedicada → sem corte de data.
+    inscritosSheet: '1Q_UzuoAN5KbEQvrlXghmwnSJ4lEZiCabABtJncKuQ2c',
+    inscritosGid: 1957151965, // aba Inscritos_19_10
+    inscritosDesde: null,
+    inscritosAte: null,
+    // Critério INVERSO de sempre (pago = Source preenchida e fora de ORIGENS_NAO_PAGAS).
+    inscritosAdsField: 'source',
+    inscritosAdsExclude: ORIGENS_NAO_PAGAS,
+    // Pesquisa: o link da pesquisa desta turma ainda não existe (a tabela de UTMs do
+    // doc ainda está com os links da Trilha 31_AGO). Combinado: utm_campaign
+    // WEBINAR_CUIDADO_19_OUT. Se o time nomear diferente, ajuste AQUI — o match para
+    // no número do dia, como nas Trilhas.
+    pesquisaDesde: null,
+    pesquisaAte: null,
+    pesquisaUtmMatch: 'WEBINAR_CUIDADO_19',
+    // Rede de segurança do token genérico da linha (se o link do grupo/X1/e-mail sair
+    // sem a utm da turma). Última da linha → aberta; feche ao criar a próxima.
+    pesquisaExtra: [{ tokens: ['WEBINAR_CUIDADO'], desde: '2026-10-19' }],
+    // Meta: as campanhas ainda não existem em 01/10. Combinado que o nome terá o
+    // token da linha WEBINAR_CUIDADO (só o token — nunca sufixo de data, ver
+    // dash-webinar-metamatch-renomeacao). Quem separa é a DATA: piso no dia da
+    // criação da edição; não há turma anterior desta linha para fechar.
+    metaDesde: '2026-10-01',
+    metaAte: null,
+    metaMatch: 'WEBINAR_CUIDADO',
+    // Release dedicada "Webinar: Estrutura de Cuidado (19/10)" (slug
+    // webinar-cuidado-19-10). Modo campaign, sem corte.
+    sendflowRelease: 'QxIISaDRCAZPOgF10Bhp',
+    sendflowGroup: null,
+    sendflowMode: 'campaign',
+    sendflowDesde: null,
+    // Webinar 19/10 (futuro). Última da fila: janela aberta. Feche quando a
+    // próxima edição (de qualquer linha) for criada.
+    diagDesde: '2026-10-19',
     diagAte: null,
   },
 
