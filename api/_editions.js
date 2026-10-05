@@ -795,9 +795,9 @@ export const EDITIONS = {
     sendflowMode: 'campaign',
     sendflowDesde: null,
     // Webinar 05/10. Fechada na véspera do próximo webinar em ordem cronológica,
-    // o de Estrutura de Cuidado (19/10).
+    // o de Estrutura de Cuidado (26/10; era 19/10).
     diagDesde: '2026-10-05',
-    diagAte: '2026-10-18',
+    diagAte: '2026-10-25', // Cuidado adiado para 26/10 (05/10)
   },
 
   // Webinar Estrutura de Cuidado 19/10 — LINHA NOVA (não é Trilha nem IA): "Como
@@ -807,7 +807,7 @@ export const EDITIONS = {
   // 744ee5b2-b903-4201-b38e-1577aee391dc. Criada em 01/10/2026, antes da captação.
   'webinar-19-10': {
     id: 'webinar-19-10',
-    label: 'Webinar Cuidado 19/10',
+    label: 'Webinar Cuidado 26/10',
     // Planilha PRÓPRIA da linha ("[MKT] Webinar - Estrutura de Cuidado (Pedro)"),
     // não a da Trilha. Mesmas 12 colunas. Aba dedicada → sem corte de data.
     inscritosSheet: '1Q_UzuoAN5KbEQvrlXghmwnSJ4lEZiCabABtJncKuQ2c',
@@ -823,10 +823,10 @@ export const EDITIONS = {
     // no número do dia, como nas Trilhas.
     pesquisaDesde: null,
     pesquisaAte: null,
-    pesquisaUtmMatch: 'WEBINAR_CUIDADO_19',
+    pesquisaUtmMatch: 'WEBINAR_CUIDADO_26', // utm_campaign webinar_cuidado_26_10_2026 (live adiada de 19 para 26/10)
     // Rede de segurança do token genérico da linha (se o link do grupo/X1/e-mail sair
     // sem a utm da turma). Última da linha → aberta; feche ao criar a próxima.
-    pesquisaExtra: [{ tokens: ['WEBINAR_CUIDADO'], desde: '2026-10-19' }],
+    pesquisaExtra: [{ tokens: ['WEBINAR_CUIDADO'], desde: '2026-10-26' }],
     // Meta: as campanhas ainda não existem em 01/10. Combinado que o nome terá o
     // token da linha WEBINAR_CUIDADO (só o token — nunca sufixo de data, ver
     // dash-webinar-metamatch-renomeacao). Quem separa é a DATA: piso no dia da
@@ -840,9 +840,9 @@ export const EDITIONS = {
     sendflowGroup: null,
     sendflowMode: 'campaign',
     sendflowDesde: null,
-    // Webinar 19/10 (futuro). Última da fila: janela aberta. Feche quando a
+    // Webinar 26/10 (futuro; adiado de 19/10 em 05/10). Última da fila: janela aberta. Feche quando a
     // próxima edição (de qualquer linha) for criada.
-    diagDesde: '2026-10-19',
+    diagDesde: '2026-10-26',
     diagAte: null,
   },
 
